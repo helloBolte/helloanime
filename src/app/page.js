@@ -23,7 +23,7 @@ export default function Home() {
           <TrendingAnimeCarousel />
           <div className="w-full h-6 bg-transparent"></div>
           <GenreSelector />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-5">
             <div className="lg:col-span-2">
             <AnimeGrid />
             </div>
