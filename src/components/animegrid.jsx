@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import useSWR from "swr"
-import { motion } from "framer-motion"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Skeleton } from "@/components/ui/skeleton"
-import { AnimeCard } from "@/components/animecard"
-import { fetchAnilist } from "@/lib/anilist"
+import { useState } from "react";
+import useSWR from "swr";
+import { motion } from "framer-motion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AnimeCard } from "@/components/animecard";
+import { fetchAnilist } from "@/lib/anilist";
 
 const ANIME_QUERY = `
   query ($sort: [MediaSort], $type: MediaType, $status: MediaStatus) {
@@ -22,48 +22,54 @@ const ANIME_QUERY = `
         episodes
         seasonYear
         averageScore
+        genres
+        status
         nextAiringEpisode {
           episode
         }
       }
     }
   }
-`
+`;
 
 export default function AnimeGrid() {
-  const [activeTab, setActiveTab] = useState("newest")
+  const [activeTab, setActiveTab] = useState("newest");
 
-  const { data: trendingData, isLoading: trendingLoading } = useSWR(["trending", ANIME_QUERY], () =>
-    fetchAnilist(ANIME_QUERY, {
-      sort: ["TRENDING_DESC"],
-      type: "ANIME",
-      status: "RELEASING",
-    }),
-  )
+  const { data: trendingData, isLoading: trendingLoading } = useSWR(
+    ["trending", ANIME_QUERY],
+    () =>
+      fetchAnilist(ANIME_QUERY, {
+        sort: ["TRENDING_DESC"],
+        type: "ANIME",
+        status: "RELEASING",
+      })
+  );
 
-  const { data: popularData } = useSWR(activeTab === "popular" ? ["popular", ANIME_QUERY] : null, () =>
-    fetchAnilist(ANIME_QUERY, {
-      sort: ["POPULARITY_DESC"],
-      type: "ANIME",
-    }),
-  )
+  const { data: popularData } = useSWR(
+    activeTab === "popular" ? ["popular", ANIME_QUERY] : null,
+    () =>
+      fetchAnilist(ANIME_QUERY, {
+        sort: ["POPULARITY_DESC"],
+        type: "ANIME",
+      })
+  );
 
-  const { data: ratedData } = useSWR(activeTab === "toprated" ? ["rated", ANIME_QUERY] : null, () =>
-    fetchAnilist(ANIME_QUERY, {
-      sort: ["SCORE_DESC"],
-      type: "ANIME",
-    }),
-  )
+  const { data: ratedData } = useSWR(
+    activeTab === "toprated" ? ["rated", ANIME_QUERY] : null,
+    () =>
+      fetchAnilist(ANIME_QUERY, {
+        sort: ["SCORE_DESC"],
+        type: "ANIME",
+      })
+  );
 
   const container = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
+      transition: { staggerChildren: 0.1 },
     },
-  }
+  };
 
   return (
     <Tabs defaultValue="newest" className="w-full" onValueChange={setActiveTab}>
@@ -78,12 +84,13 @@ export default function AnimeGrid() {
           TOP RATED
         </TabsTrigger>
       </TabsList>
+
       <TabsContent value="newest">
         <motion.div
           variants={container}
           initial="hidden"
           animate="show"
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4"
         >
           {trendingLoading
             ? Array(20)
@@ -92,24 +99,26 @@ export default function AnimeGrid() {
             : trendingData?.Page.media.map((anime) => <AnimeCard key={anime.id} anime={anime} />)}
         </motion.div>
       </TabsContent>
+
       <TabsContent value="popular">
         <motion.div
           variants={container}
           initial="hidden"
           animate="show"
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4"
         >
           {popularData?.Page.media.map((anime) => (
             <AnimeCard key={anime.id} anime={anime} />
           ))}
         </motion.div>
       </TabsContent>
+
       <TabsContent value="toprated">
         <motion.div
           variants={container}
           initial="hidden"
           animate="show"
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4"
         >
           {ratedData?.Page.media.map((anime) => (
             <AnimeCard key={anime.id} anime={anime} />
@@ -117,6 +126,5 @@ export default function AnimeGrid() {
         </motion.div>
       </TabsContent>
     </Tabs>
-  )
+  );
 }
-

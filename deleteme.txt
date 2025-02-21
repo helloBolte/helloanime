@@ -1,0 +1,16 @@
+create next js app router api for getting data from mongo db
+
+db - helloanime
+collection - animes
+collection - episodes
+
+animes collection contains 
+anilist_id:
+directory_name:
+
+epsiodes collection contains 
+directory_name:
+sub:
+dub:
+
+api takes the anilist id and returns the 

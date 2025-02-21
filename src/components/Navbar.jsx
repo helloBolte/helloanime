@@ -245,7 +245,7 @@ function SearchForm({
       {(suggestions.length > 0 || isLoading) && (
         <div
           ref={suggestionRef}
-          className="absolute z-10 w-full mt-1 bg-gray-800 border border-purple-600 rounded-md shadow-lg max-h-60 overflow-y-auto"
+          className="absolute z-40 w-full mt-1 bg-gray-800 border border-purple-600 rounded-md shadow-lg max-h-60 overflow-y-auto"
         >
           {isLoading ? (
             [...Array(3)].map((_, index) => (

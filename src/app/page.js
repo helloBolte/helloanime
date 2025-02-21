@@ -1,8 +1,8 @@
 import TrendingAnimeCarousel from '@/components/TrendingAnimeCarousel';
-import GenreSelector from '@/components/GenreSelector'; // Corrected spelling if needed
+import GenreSelector from '@/components/GenreSelector';
 import { ApolloClient, InMemoryCache, ApolloProvider } from "@apollo/client";
-import AnimeGrid from "@/components/animegrid"; // Remove curly braces
-import TopAiring from "@/components/topairing";  // Remove curly braces
+import AnimeGrid from "@/components/animegrid";
+import TopAiring from "@/components/topairing";
 import { SWRConfig } from "swr";
 
 export default function Home() {
@@ -23,11 +23,11 @@ export default function Home() {
           <TrendingAnimeCarousel />
           <div className="w-full h-6 bg-transparent"></div>
           <GenreSelector />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-5">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-5 items-stretch">
             <div className="lg:col-span-2">
-            <AnimeGrid />
+              <AnimeGrid />
             </div>
-            <div className="space-y-8">
+            <div className="max-h-screen">
               <TopAiring />
             </div>
           </div>
@@ -38,6 +38,6 @@ export default function Home() {
           </div>
         </footer>
       </div>
-      </SWRConfig>
+    </SWRConfig>
   );
 }
