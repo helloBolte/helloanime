@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,14 +7,27 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarDays } from "lucide-react";
 import Image from "next/image";
 
-// Fetch anime schedule from AniList API
+// Fetch anime schedule from AniList API using UTC dates
 const fetchAnimeSchedule = async (weekOffset = 0) => {
   const currentDate = new Date();
-  const startOfWeek = new Date(
-    currentDate.setDate(currentDate.getDate() - currentDate.getDay() + 7 * weekOffset)
-  );
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+  // Calculate the start of the week in UTC (Sunday 00:00 UTC)
+  const startOfWeek = new Date(Date.UTC(
+    currentDate.getUTCFullYear(),
+    currentDate.getUTCMonth(),
+    currentDate.getUTCDate() - currentDate.getUTCDay() + (weekOffset * 7),
+    0, 0, 0, 0 // Set to 00:00:00 UTC
+  ));
+
+  // Calculate the end of the week in UTC as next Sunday 00:00 UTC (exclusive)
+  const endOfWeek = new Date(Date.UTC(
+    currentDate.getUTCFullYear(),
+    currentDate.getUTCMonth(),
+    currentDate.getUTCDate() - currentDate.getUTCDay() + (weekOffset * 7) + 7,
+    0, 0, 0, 0
+  ));
+
+  console.log("Fetching from:", startOfWeek.toISOString(), "to", endOfWeek.toISOString());
 
   const query = `
     query ($start: Int, $end: Int) {
@@ -50,24 +64,23 @@ const fetchAnimeSchedule = async (weekOffset = 0) => {
 };
 
 export default function AnimeSchedule() {
-  // We'll store schedules for weekOffset 0 and 1 as an object:
-  // { 0: { 0: {...}, 1: {...}, ... }, 1: { 0: {...}, 1: {...}, ... } }
   const [schedule, setSchedule] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
-  // Default the selected day to the current day (0 for Sunday, 1 for Monday, etc.)
-  const [selectedDay, setSelectedDay] = useState(new Date().getDay());
+  const [selectedDay, setSelectedDay] = useState(new Date().getUTCDay());
 
-  // Group fetched data by day index and time
+  // Group fetched data by day index and time using UTC
   const groupDataByDay = (data) => {
     return data.reduce((acc, anime) => {
-      const airTime = new Date(anime.airingAt * 1000);
-      const dayIndex = airTime.getDay();
-      const timeString = airTime.toLocaleTimeString([], {
+      const airTime = new Date(anime.airingAt * 1000); // Convert to milliseconds
+      const dayIndex = airTime.getUTCDay(); // Use UTC day
+      const timeString = airTime.toLocaleTimeString("en-US", {
         hour: "2-digit",
         minute: "2-digit",
         hour12: true,
+        timeZone: "UTC", // Ensure time is in UTC
       });
+
       if (!acc[dayIndex]) acc[dayIndex] = {};
       if (!acc[dayIndex][timeString]) acc[dayIndex][timeString] = [];
       acc[dayIndex][timeString].push(anime);
@@ -97,33 +110,37 @@ export default function AnimeSchedule() {
   }, []);
 
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const shortDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-bold text-purple-400">Anime Schedule</h1>
+    <div className="min-h-screen bg-black text-white p-3 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+        <h1 className="text-2xl sm:text-3xl font-bold text-purple-400">Anime Schedule</h1>
         <button
           onClick={() => setWeekOffset(weekOffset === 0 ? 1 : 0)}
-          className="flex items-center gap-2 bg-purple-500 hover:bg-purple-700 text-white px-4 py-2 rounded-lg"
+          className="flex items-center justify-center gap-2 bg-purple-500 hover:bg-purple-700 text-white px-4 py-2 rounded-lg w-full sm:w-auto"
         >
           <CalendarDays size={20} />
-          {weekOffset === 0 ? "Next Week" : "Current Week"}
+          <span>{weekOffset === 0 ? "Next Week" : "Current Week"}</span>
         </button>
       </div>
 
       <Tabs defaultValue={days[selectedDay]}>
-        <TabsList className="bg-gray-900 p-2 rounded-lg flex justify-between">
-          {days.map((day) => (
-            <TabsTrigger
-              key={day}
-              value={day}
-              className="text-white data-[state=active]:bg-purple-500 px-4 py-2 rounded-lg"
-              onClick={() => setSelectedDay(days.indexOf(day))}
-            >
-              {day}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="overflow-x-auto pb-2">
+          <TabsList className="bg-gray-900 p-2 rounded-lg flex w-full sm:justify-between">
+            {days.map((day, idx) => (
+              <TabsTrigger
+                key={day}
+                value={day}
+                className="text-white data-[state=active]:bg-purple-500 px-3 sm:px-4 py-2 rounded-lg whitespace-nowrap"
+                onClick={() => setSelectedDay(days.indexOf(day))}
+              >
+                <span className="hidden sm:inline">{day}</span>
+                <span className="sm:hidden">{shortDays[idx]}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
         {days.map((day, index) => (
           <TabsContent key={day} value={day} className="mt-4">
@@ -138,29 +155,26 @@ export default function AnimeSchedule() {
               Object.entries(schedule[weekOffset][index]).map(([time, animes]) => (
                 <div key={time} className="mb-6">
                   <h2 className="text-lg font-bold text-purple-400">{time}</h2>
-                  <div className="flex gap-4 mt-2 flex-wrap">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-2">
                     {animes.map((anime, idx) => (
-                      <Card
-                        key={idx}
-                        className="border border-purple-500 w-72 overflow-hidden bg-gray-900"
-                      >
+                      <Card key={idx} className="border border-purple-500 overflow-hidden bg-gray-900">
                         <CardContent className="p-3 flex items-center">
-                          <Image
-                            src={anime.media.coverImage.large}
-                            alt={anime.media.title.romaji}
-                            width={50}
-                            height={50}
-                            className="rounded-md"
-                          />
-                          <div className="ml-3">
-                            <h3 className="text-white font-bold">
+                          <div className="flex-shrink-0">
+                            <Image
+                              src={anime.media.coverImage.large || "/placeholder.svg"}
+                              alt={anime.media.title.romaji}
+                              width={50}
+                              height={50}
+                              className="rounded-md object-cover"
+                            />
+                          </div>
+                          <div className="ml-3 overflow-hidden">
+                            <h3 className="text-white font-bold text-sm truncate">
                               {anime.media.title.romaji}
                             </h3>
-                            <div className="flex text-sm text-gray-300 gap-2 mt-1">
+                            <div className="flex flex-wrap text-xs sm:text-sm text-gray-300 gap-2 mt-1">
                               <span className="bg-purple-700 px-2 py-1 rounded">{time}</span>
-                              <span className="bg-gray-700 px-2 py-1 rounded">
-                                EP {anime.episode}
-                              </span>
+                              <span className="bg-gray-700 px-2 py-1 rounded">EP {anime.episode}</span>
                             </div>
                           </div>
                         </CardContent>
