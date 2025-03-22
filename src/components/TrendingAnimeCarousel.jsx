@@ -7,68 +7,23 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
-const ANILIST_API = 'https://graphql.anilist.co';
-
 export default function AnimeCarousel() {
   const [trendingAnime, setTrendingAnime] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch trending anime
+  // Fetch anime data from your crousel API
   const fetchTrendingAnime = useCallback(async () => {
-    const query = `
-      query {
-        Page(page: 1, perPage: 10) {
-          media(type: ANIME, sort: TRENDING_DESC) {
-            id
-            title {
-              romaji
-              english
-            }
-            coverImage {
-              large
-              extraLarge
-            }
-            bannerImage
-            description
-            genres
-            averageScore
-            status
-            nextAiringEpisode {
-              airingAt
-              timeUntilAiring
-              episode
-            }
-          }
-        }
-      }
-    `;
-
     try {
-      const response = await fetch(ANILIST_API, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({ query }),
-      });
-
+      const response = await fetch('/api/crousel');
       if (!response.ok) {
-        throw new Error(`AniList API responded with status: ${response.status}`);
+        throw new Error(`Crousel API responded with status: ${response.status}`);
       }
-
       const data = await response.json();
-
-      if (data.errors) {
-        console.error('AniList API returned errors:', data.errors);
-        throw new Error('Error in AniList API response');
-      }
-
-      setTrendingAnime(data.data.Page.media);
+      setTrendingAnime(data);
     } catch (error) {
-      console.error('Error fetching trending anime:', error);
+      console.error('Error fetching crousel data:', error);
       setError(error.message || 'An unknown error occurred');
     } finally {
       setLoading(false);
@@ -78,6 +33,12 @@ export default function AnimeCarousel() {
   // Slide navigation functions
   const nextSlide = useCallback(() => {
     setCurrentIndex((prevIndex) => (prevIndex + 1) % trendingAnime.length);
+  }, [trendingAnime.length]);
+
+  const prevSlide = useCallback(() => {
+    setCurrentIndex((prevIndex) =>
+      prevIndex === 0 ? trendingAnime.length - 1 : prevIndex - 1
+    );
   }, [trendingAnime.length]);
 
   const goToSlide = useCallback((index) => {
@@ -94,7 +55,6 @@ export default function AnimeCarousel() {
     const intervalId = setInterval(() => {
       nextSlide();
     }, 5000);
-
     return () => clearInterval(intervalId);
   }, [nextSlide]);
 
@@ -147,6 +107,18 @@ export default function AnimeCarousel() {
           exit="exit"
           transition={{ duration: 0.5 }}
           className="absolute w-full h-full"
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          onDragEnd={(event, info) => {
+            const offset = info.offset.x;
+            if (offset < -50) {
+              // Swiped left to see next slide
+              nextSlide();
+            } else if (offset > 50) {
+              // Swiped right to see previous slide
+              prevSlide();
+            }
+          }}
         >
           {trendingAnime[currentIndex] && (
             <>
@@ -189,11 +161,8 @@ export default function AnimeCarousel() {
                     {stripHtmlTags(trendingAnime[currentIndex].description).substring(0, 100)}...
                   </p>
                   <div className="flex flex-wrap gap-2 mb-2 md:mb-4">
-                    {trendingAnime[currentIndex].genres.slice(0, 2).map((genre, index) => (
-                      <Badge
-                        key={index}
-                        className="bg-gray-800/60 text-gray-200 text-xs md:text-sm"
-                      >
+                    {(trendingAnime[currentIndex].genres || []).slice(0, 2).map((genre, index) => (
+                      <Badge key={index} className="bg-gray-800/60 text-gray-200 text-xs md:text-sm">
                         {genre}
                       </Badge>
                     ))}
@@ -218,10 +187,7 @@ export default function AnimeCarousel() {
                   </Button>
                 </Link>
                 {/* Hide "Details" button on mobile */}
-                <Link
-                  href={`/anime/${trendingAnime[currentIndex].id}/details`}
-                  className="hidden md:block"
-                >
+                <Link href={`/anime/${trendingAnime[currentIndex].id}/details`} className="hidden md:block">
                   <Button className="bg-purple-600 hover:bg-purple-700 text-white w-28 md:w-auto text-sm md:text-base">
                     Details
                   </Button>
