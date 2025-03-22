@@ -1,19 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import useSWR from "swr"
 import { motion, AnimatePresence } from "framer-motion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TrendingUp, Calendar, Info } from "lucide-react"
 
-// AniList GraphQL endpoint
-const API_URL = "https://graphql.anilist.co"
+// SWR fetcher that calls your internal trending API endpoint
+const fetcher = (url) => fetch(url).then((res) => res.json())
 
 export default function TrendingAnimePage() {
   const [activeSeason, setActiveSeason] = useState("Summer")
-  const [animeList, setAnimeList] = useState([])
-  const [loading, setLoading] = useState(false)
 
   // Determine default season based on the current month
   useEffect(() => {
@@ -27,7 +26,15 @@ export default function TrendingAnimePage() {
     setActiveSeason(defaultSeason)
   }, [])
 
-  // Helper: Get season year
+  // Fetch trending anime data from your API
+  const { data, error, isLoading } = useSWR("/api/trending", fetcher)
+
+  // Extract the media array from the document matching the activeSeason
+  const filteredAnime = data
+    ? data.find((doc) => doc._id === activeSeason)?.media || []
+    : []
+
+  // Helper: Get season year (based on activeSeason)
   const getSeasonYear = (season) => {
     const now = new Date()
     const currentYear = now.getFullYear()
@@ -37,61 +44,6 @@ export default function TrendingAnimePage() {
     }
     return currentYear
   }
-
-  // Fetch anime data from AniList whenever activeSeason changes
-  useEffect(() => {
-    const fetchAnime = async () => {
-      setLoading(true)
-      const seasonYear = getSeasonYear(activeSeason)
-      const query = `
-        query ($season: MediaSeason, $seasonYear: Int) {
-          Page(page: 1, perPage: 10) {
-            media(season: $season, seasonYear: $seasonYear, type: ANIME, sort: TRENDING_DESC) {
-              id
-              title {
-                romaji
-                english
-              }
-              description(asHtml: false)
-              coverImage {
-                medium
-                large
-              }
-              genres
-              averageScore
-              episodes
-              status
-            }
-          }
-        }
-      `
-      const variables = {
-        season: activeSeason.toUpperCase(),
-        seasonYear: seasonYear,
-      }
-
-      try {
-        const response = await fetch(API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({ query, variables }),
-        })
-        const json = await response.json()
-        if (json.data && json.data.Page && json.data.Page.media) {
-          setAnimeList(json.data.Page.media)
-        }
-      } catch (error) {
-        console.error("Error fetching anime:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchAnime()
-  }, [activeSeason])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black to-purple-950 text-white p-4 md:p-8">
@@ -120,15 +72,24 @@ export default function TrendingAnimePage() {
       >
         <div className="flex justify-center mb-4">
           <TabsList className="bg-black/40 border border-purple-800">
-            <TabsTrigger value="Fall" className="data-[state=active]:bg-purple-800 data-[state=active]:text-white">
+            <TabsTrigger
+              value="Fall"
+              className="data-[state=active]:bg-purple-800 data-[state=active]:text-white"
+            >
               <Calendar className="mr-2 h-4 w-4" />
               Fall
             </TabsTrigger>
-            <TabsTrigger value="Summer" className="data-[state=active]:bg-purple-800 data-[state=active]:text-white">
+            <TabsTrigger
+              value="Summer"
+              className="data-[state=active]:bg-purple-800 data-[state=active]:text-white"
+            >
               <Calendar className="mr-2 h-4 w-4" />
               Summer
             </TabsTrigger>
-            <TabsTrigger value="Winter" className="data-[state=active]:bg-purple-800 data-[state=active]:text-white">
+            <TabsTrigger
+              value="Winter"
+              className="data-[state=active]:bg-purple-800 data-[state=active]:text-white"
+            >
               <Calendar className="mr-2 h-4 w-4" />
               Winter
             </TabsTrigger>
@@ -145,7 +106,7 @@ export default function TrendingAnimePage() {
                 </h2>
               </div>
 
-              {loading ? (
+              {isLoading ? (
                 <AnimeSkeletonList />
               ) : (
                 <AnimatePresence mode="wait">
@@ -157,9 +118,10 @@ export default function TrendingAnimePage() {
                     transition={{ duration: 0.3 }}
                     className="grid grid-cols-1 md:grid-cols-2 gap-6"
                   >
-                    {animeList.map((anime, index) => (
-                      <AnimeCard key={anime.id} anime={anime} index={index} />
-                    ))}
+                    {season === activeSeason &&
+                      filteredAnime.map((anime, index) => (
+                        <AnimeCard key={anime.id} anime={anime} index={index} />
+                      ))}
                   </motion.div>
                 </AnimatePresence>
               )}
@@ -229,7 +191,9 @@ function AnimeCard({ anime, index }) {
                 transition={{ duration: 0.3 }}
               >
                 <div className={`${!isExpanded && "line-clamp-3"}`}>
-                  {anime.description ? anime.description.replace(/<[^>]+>/g, "") : "No description available."}
+                  {anime.description
+                    ? anime.description.replace(/<[^>]+>/g, "")
+                    : "No description available."}
                 </div>
               </motion.div>
 
@@ -279,4 +243,3 @@ function AnimeSkeletonList() {
     </div>
   )
 }
-

@@ -4,31 +4,16 @@ import useSWR from "swr"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tv, Calendar } from "lucide-react"
-import { fetchAnilist } from "@/lib/anilist"
 
-const TOP_AIRING_QUERY = `
-  query {
-    Page(page: 1, perPage: 20) {
-      media(sort: POPULARITY_DESC, status: RELEASING, type: ANIME) {
-        id
-        title {
-          userPreferred
-        }
-        coverImage {
-          large
-        }
-        nextAiringEpisode {
-          episode
-        }
-        seasonYear
-        averageScore
-      }
-    }
-  }
-`
+// SWR fetcher function that calls our topairing API endpoint
+const fetcher = (url) => fetch(url).then((res) => res.json())
 
 export default function TopAiring() {
-  const { data, isLoading } = useSWR("topAiring", () => fetchAnilist(TOP_AIRING_QUERY))
+  // Use SWR to fetch data from our API
+  const { data, error, isLoading } = useSWR("/api/topairing", fetcher)
+
+  // Extract the media array from our API data (if available)
+  const topAiringMedia = data && data.length > 0 ? data[0].media : []
 
   return (
     <Card className="w-full bg-gray-900 text-white h-full flex flex-col">
@@ -40,7 +25,7 @@ export default function TopAiring() {
       </CardHeader>
       <CardContent className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-gray-800">
         <div className="space-y-4">
-          {isLoading
+          {isLoading || !data
             ? Array(10)
                 .fill(0)
                 .map((_, i) => (
@@ -52,7 +37,7 @@ export default function TopAiring() {
                     </div>
                   </div>
                 ))
-            : data?.Page.media.map((anime) => (
+            : topAiringMedia.map((anime) => (
                 <div
                   key={anime.id}
                   className="flex gap-3 hover:bg-gray-800 p-2 rounded-lg transition-colors cursor-pointer"
@@ -73,6 +58,7 @@ export default function TopAiring() {
                   </div>
                 </div>
               ))}
+          {error && <p className="text-red-500">Error loading data.</p>}
         </div>
       </CardContent>
     </Card>

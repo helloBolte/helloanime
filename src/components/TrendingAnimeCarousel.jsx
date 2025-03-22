@@ -181,13 +181,13 @@ export default function AnimeCarousel() {
 
               {/* Buttons positioned at bottom right */}
               <div className="absolute bottom-1 md:bottom-2 right-4 md:right-6 flex flex-col md:flex-row items-end md:items-center space-y-2 md:space-y-0 md:space-x-4 z-20">
-                <Link href={`/anime/${trendingAnime[currentIndex].id}`}>
+                <Link href={`/watch/${trendingAnime[currentIndex].id}`}>
                   <Button className="bg-purple-600 hover:bg-purple-700 text-white w-28 md:w-auto text-sm md:text-base">
                     Watch Now
                   </Button>
                 </Link>
                 {/* Hide "Details" button on mobile */}
-                <Link href={`/anime/${trendingAnime[currentIndex].id}/details`} className="hidden md:block">
+                <Link href={`/anime/${trendingAnime[currentIndex].id}`} className="hidden md:block">
                   <Button className="bg-purple-600 hover:bg-purple-700 text-white w-28 md:w-auto text-sm md:text-base">
                     Details
                   </Button>
