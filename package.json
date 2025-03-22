@@ -36,6 +36,7 @@
     "videojs-http-source-selector": "^1.1.6"
   },
   "devDependencies": {
+    "@babel/eslint-parser": "^7.26.10",
     "@eslint/eslintrc": "^3",
     "eslint": "^9",
     "eslint-config-next": "15.1.6",
