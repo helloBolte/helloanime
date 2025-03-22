@@ -12,22 +12,35 @@ const compat = new FlatCompat({
 // Get the base ESLint config from Next.js
 const rawConfig = [...compat.extends("next/core-web-vitals")];
 
-// Process each config object to ensure no unsupported function values are present
+// Convert legacy parser settings to flat config format
 const eslintConfig = rawConfig.map((config) => {
-  if (config.parser && typeof config.parser === "object") {
-    // Remove any function values from the parser object (specifically the "parse" function)
-    if (typeof config.parser.parse === "function") {
-      const { parse, ...rest } = config.parser;
-      config.parser = rest;
+  // If a legacy parser is defined at the root level, move it into languageOptions.parser
+  if (config.parser) {
+    config.languageOptions = config.languageOptions || {};
+
+    // If the parser is an object (with potential function values), remove the function and set a supported parser string.
+    if (typeof config.parser === "object") {
+      if (typeof config.parser.parse === "function") {
+        // Remove the unsupported function by ignoring the "parse" property.
+        const { parse, ...rest } = config.parser;
+        // You can replace with your preferred supported parser here.
+        config.languageOptions.parser = "@babel/eslint-parser";
+      } else {
+        // Fallback: assign a supported parser string
+        config.languageOptions.parser = "@babel/eslint-parser";
+      }
+    } else if (typeof config.parser === "string") {
+      // If it's already a string, just move it.
+      config.languageOptions.parser = config.parser;
     }
-    // Set a supported parser if one is not already specified as a string
-    // Here we set it explicitly to @babel/eslint-parser; change it if needed.
-    if (typeof config.parser !== "string") {
-      config.parser = "@babel/eslint-parser";
+    // Remove the old parser key.
+    delete config.parser;
+  } else {
+    // If no parser is defined at the root, ensure languageOptions exists and set a default parser.
+    config.languageOptions = config.languageOptions || {};
+    if (!config.languageOptions.parser) {
+      config.languageOptions.parser = "@babel/eslint-parser";
     }
-  } else if (!config.parser) {
-    // If no parser is defined, set one explicitly
-    config.parser = "@babel/eslint-parser";
   }
   return config;
 });

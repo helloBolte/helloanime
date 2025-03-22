@@ -1,4 +1,4 @@
-// app/api/crousel/route.js
+
 import { NextResponse } from 'next/server';
 import clientPromise from '../../../lib/mongodb';
 
