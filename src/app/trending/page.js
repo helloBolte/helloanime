@@ -209,7 +209,7 @@ function AnimeCard({ anime, index }) {
                 <CardTitle className="text-xl font-bold text-purple-200">
                   {anime.title.english || anime.title.romaji}
                 </CardTitle>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-2 text-white">
                   {anime.genres?.slice(0, 3).map((genre) => (
                     <span key={genre} className="text-xs bg-purple-900/70 px-2 py-1 rounded-full">
                       {genre}

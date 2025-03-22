@@ -131,7 +131,7 @@ function AnimeDetailContent({ anime }) {
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.5, duration: 0.5 }}
-        className="fixed bottom-0 left-0 right-0 p-2 sm:p-4 bg-gray-900 bg-opacity-90 backdrop-blur-md z-50"
+        className="fixed bottom-16 left-0 md:bottom-0 md:left-16 right-0 p-2 sm:p-4 bg-gray-900 bg-opacity-90 backdrop-blur-md z-50"
       >
         <Link href={`/watch/${anime.id}`}>
           <Button

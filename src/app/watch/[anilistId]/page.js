@@ -1,400 +1,541 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useParams } from "next/navigation";
+import axios from "axios";
 import ArtPlayer from "artplayer";
 import Hls from "hls.js";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sliders, ChevronLeft, ChevronRight } from "lucide-react";
 
-// Cookie helper functions
-function getCookie(name) {
-  const nameEQ = name + "=";
-  const ca = document.cookie.split(";");
-  for (let i = 0; i < ca.length; i++) {
-    let c = ca[i];
-    while (c.charAt(0) === " ") c = c.substring(1);
-    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+// --- Round Robin Helper for Pahe Endpoints ---
+const paheEndpoints = ["/api/gpahe", "/api/gpahe2", "/api/gpahe3"];
+let paheEndpointIndex = 0; // module-level variable to persist across renders
+
+function getNextPaheEndpoint() {
+  const endpoint = paheEndpoints[paheEndpointIndex];
+  paheEndpointIndex = (paheEndpointIndex + 1) % paheEndpoints.length;
+  return endpoint;
+}
+// --- End Round Robin Helper ---
+
+// Helper: Proxy image URL via /api/gimg if necessary.
+const getImageUrl = (url) => {
+  if (!url) return "";
+  if (url.startsWith("https://img.gojo.wtf/")) {
+    return `/api/gimg?url=${encodeURIComponent(url)}`;
   }
+  return url;
+};
+
+// Simple cookie helpers.
+function getCookie(name) {
+  if (typeof document === "undefined") return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(";").shift();
   return null;
 }
-
 function setCookie(name, value, days = 365) {
-  let expires = "";
-  if (days) {
-    const date = new Date();
-    date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
-    expires = "; expires=" + date.toUTCString();
+  if (typeof document === "undefined") return;
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${value}; expires=${expires}; path=/`;
+}
+
+/**
+ * Adds timeline markers for the intro and outro segments.
+ */
+function addIntroOutroMarkers(art, skipData) {
+  const duration = art.video.duration;
+  const timeline = art.container.querySelector(".artplayer-timeline");
+  if (!timeline || !duration) return;
+
+  // Clear any existing markers.
+  timeline.querySelectorAll(".skip-marker").forEach((el) => el.remove());
+
+  // Intro marker.
+  if (skipData.op && skipData.op.startTime > 0) {
+    const introMarker = document.createElement("div");
+    introMarker.className = "skip-marker skip-intro";
+    const widthPercent = (skipData.op.startTime / duration) * 100;
+    introMarker.style.position = "absolute";
+    introMarker.style.left = "0%";
+    introMarker.style.width = widthPercent + "%";
+    introMarker.style.height = "100%";
+    introMarker.style.backgroundColor = "rgba(255,255,0,0.3)";
+    timeline.appendChild(introMarker);
   }
-  document.cookie = name + "=" + (value || "") + expires + "; path=/";
+
+  // Outro marker.
+  if (skipData.ed && skipData.ed.endTime < duration) {
+    const outroMarker = document.createElement("div");
+    outroMarker.className = "skip-marker skip-outro";
+    const leftPercent = (skipData.ed.endTime / duration) * 100;
+    const widthPercent = ((duration - skipData.ed.endTime) / duration) * 100;
+    outroMarker.style.position = "absolute";
+    outroMarker.style.left = leftPercent + "%";
+    outroMarker.style.width = widthPercent + "%";
+    outroMarker.style.height = "100%";
+    outroMarker.style.backgroundColor = "rgba(0,255,255,0.3)";
+    timeline.appendChild(outroMarker);
+  }
 }
 
 export default function WatchPage() {
-  const params = useParams();
-  const { anilistId } = params;
-  const router = useRouter();
+  const { anilistId } = useParams();
+  const cookieKey = `watchSettings_${anilistId}`;
 
-  const [player, setPlayer] = useState(null);
-  const [animeTitle, setAnimeTitle] = useState("Anime Title");
-  const [directoryName, setDirectoryName] = useState("");
+  // Watch settings.
+  const [watchSettings, setWatchSettings] = useState(null);
+
+  // Providers, episodes and current selections.
+  const [providers, setProviders] = useState([]);
+  const [currentProvider, setCurrentProvider] = useState(null);
+  const [audioTrack, setAudioTrack] = useState("sub");
   const [episodes, setEpisodes] = useState([]);
   const [currentEpisode, setCurrentEpisode] = useState(null);
-  const [videoSource, setVideoSource] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [episodeDetails, setEpisodeDetails] = useState(null);
+
+  // UI states.
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  // isDub: true means dub; false means sub.
-  const [isDub, setIsDub] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const episodesPerPage = 100;
 
-  // For quality selection; -1 means auto.
-  const [qualityLevels, setQualityLevels] = useState([]);
-  const [selectedQuality, setSelectedQuality] = useState(-1);
-  const hlsRef = useRef(null);
+  // Refs for ArtPlayer.
+  const playerContainerRef = useRef(null);
+  const artPlayerRef = useRef(null);
 
-  // On mount, read cookies for language and quality preferences.
+  // Read cookie on initial load.
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const videoLangCookie = getCookie("videoLang");
-      if (videoLangCookie) {
-        setIsDub(videoLangCookie === "dub");
-      }
-      const videoQualityCookie = getCookie("videoQuality");
-      if (videoQualityCookie !== null) {
-        const quality = parseInt(videoQualityCookie, 10);
-        setSelectedQuality(isNaN(quality) ? -1 : quality);
+    if (!anilistId) return;
+    const cookieVal = getCookie(cookieKey);
+    if (cookieVal) {
+      try {
+        const settings = JSON.parse(decodeURIComponent(cookieVal));
+        setWatchSettings(settings);
+      } catch (error) {
+        console.error("Error parsing watchSettings cookie:", error);
       }
     }
-  }, []);
+  }, [anilistId, cookieKey]);
 
-  // Fetch anime title directly from AniList API using anilistId from URL.
+  // Fetch providers from /api/gepisodes (filter out "zoro").
   useEffect(() => {
-    async function fetchAnimeTitle() {
+    async function fetchData() {
       try {
-        const res = await fetch("https://graphql.anilist.co", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({
-            query: `
-              query ($id: Int) {
-                Media(id: $id, type: ANIME) {
-                  title {
-                    english
-                    romaji
-                    native
-                  }
-                }
-              }
-            `,
-            variables: { id: parseInt(anilistId) },
-          }),
-        });
-        const json = await res.json();
-        const media = json.data?.Media;
-        if (media) {
-          setAnimeTitle(
-            media.title.english ||
-              media.title.romaji ||
-              media.title.native ||
-              "Anime Title"
-          );
+        setLoading(true);
+        const res = await axios.get(`/api/gepisodes?id=${anilistId}`);
+        const data = res.data;
+        // "pahe" is not filtered out now.
+        const filteredData = data.filter((p) => p.providerId !== "zoro");
+        if (filteredData && filteredData.length > 0) {
+          setProviders(filteredData);
+          const savedProviderId = watchSettings?.provider;
+          const defaultProvider =
+            filteredData.find((p) => p.providerId === savedProviderId) ||
+            filteredData.find((p) => p.default) ||
+            filteredData[0];
+          setCurrentProvider(defaultProvider);
+          setAudioTrack(watchSettings?.audio || "sub");
         }
       } catch (error) {
-        console.error("Error fetching anime title:", error);
+        console.error("Error fetching providers:", error);
+      } finally {
+        setLoading(false);
       }
     }
-    if (anilistId) {
-      fetchAnimeTitle();
-    }
-  }, [anilistId]);
+    if (anilistId) fetchData();
+  }, [anilistId, watchSettings]);
 
-  // Fetch additional details (episodes, directoryName) from your backend.
+  // Update episodes list when provider or audio track changes.
   useEffect(() => {
-    async function fetchDetails() {
-      try {
-        const res = await fetch(`/api/details?anilistId=${anilistId}`);
-        const data = await res.json();
-        setDirectoryName(data.directory_name);
-        setEpisodes(data.episode_data);
-      } catch (error) {
-        console.error("Error fetching details:", error);
-      }
+    if (!currentProvider) return;
+    let filtered = [...(currentProvider.episodes || [])];
+    if (audioTrack === "dub") {
+      filtered = filtered.filter((ep) => ep.hasDub === true);
     }
-    if (anilistId) {
-      fetchDetails();
+    setEpisodes(filtered);
+    setCurrentPage(1);
+    if (filtered.length > 0) {
+      const savedEpisodeNumber = watchSettings?.episode;
+      const ep1 =
+        filtered.find((ep) => ep.number === savedEpisodeNumber) ||
+        filtered.find((ep) => ep.number === 1);
+      setCurrentEpisode(ep1 ? ep1 : filtered[0]);
+    } else {
+      setCurrentEpisode(null);
     }
-  }, [anilistId]);
+  }, [currentProvider, audioTrack, watchSettings]);
 
-  // Once quality levels are loaded, apply the stored quality preference.
+  // Fetch episode details from /api/gwatch.
   useEffect(() => {
-    if (hlsRef.current && qualityLevels.length > 0) {
-      if (selectedQuality !== -1 && selectedQuality < qualityLevels.length) {
-        hlsRef.current.currentLevel = selectedQuality;
+    async function fetchEpisodeDetails() {
+      if (!currentEpisode || !currentProvider) return;
+      let watchId = "";
+      let dub_id = "";
+      // For "pahe" and "zaza", use episode.id as watchId.
+      if (
+        currentProvider.providerId === "zaza" ||
+        currentProvider.providerId === "pahe"
+      ) {
+        watchId = currentEpisode.id;
+        // For zaza, use currentEpisode.dub_id if available; for pahe simply use "null".
+        dub_id =
+          currentProvider.providerId === "zaza"
+            ? currentEpisode.dub_id || "null"
+            : "null";
       } else {
-        if (selectedQuality !== -1) {
-          setSelectedQuality(-1);
-          setCookie("videoQuality", -1);
-        }
-        hlsRef.current.currentLevel = -1;
+        watchId = currentEpisode.number;
+        dub_id = "null";
+      }
+      const url = `/api/gwatch?provider=${currentProvider.providerId}&id=${anilistId}&num=${currentEpisode.number}&subType=${audioTrack}&watchId=${watchId}&dub_id=${dub_id}`;
+      try {
+        const res = await axios.get(url);
+        setEpisodeDetails(res.data);
+      } catch (error) {
+        console.error("Error fetching episode details from gwatch API:", error.message);
       }
     }
-  }, [qualityLevels, selectedQuality]);
+    fetchEpisodeDetails();
+  }, [currentEpisode, audioTrack, currentProvider, anilistId]);
 
-  // Initialize or reinitialize ArtPlayer (and Hls) when videoSource or isDub changes.
+  // Initialize ArtPlayer with fixed dimensions, using HLS and route API for pahe, zaza, etc.
   useEffect(() => {
-    if (typeof window === "undefined" || !videoSource) return;
+    // Ensure container is available.
+    if (!playerContainerRef.current) return;
 
-    // Destroy any existing player instance.
-    if (player) {
-      player.destroy();
-      setPlayer(null);
+    // Immediately destroy any existing player.
+    if (artPlayerRef.current) {
+      artPlayerRef.current.destroy();
+      artPlayerRef.current = null;
     }
 
-    // Choose URL and subtitle based on dub/sub preference.
-    const url =
-      isDub && videoSource.dub?.m3u8
-        ? videoSource.dub.m3u8
-        : videoSource.sub?.m3u8;
-    const subtitleUrl =
-      isDub && videoSource.dub?.subtitle
-        ? videoSource.dub.subtitle
-        : videoSource.sub?.subtitle;
-
-    if (!url) {
-      console.error("Video URL not available");
+    // Do not initialize if no valid episode details.
+    if (
+      !currentEpisode ||
+      !episodeDetails ||
+      (Object.keys(episodeDetails).length === 0) ||
+      !episodeDetails.sources ||
+      episodeDetails.sources.length === 0
+    ) {
       return;
     }
 
-    // Clear previous quality levels.
-    setQualityLevels([]);
-
-    // Configure ArtPlayer options, including subtitle settings if available.
-    const artOptions = {
-      container: "#player",
-      url,
-      subtitle: subtitleUrl
-        ? {
-            url: subtitleUrl,
-            type: "vtt",
-            style: { color: "#FFF", fontSize: "20px" },
-          }
-        : undefined,
-      playbackRate: true,
-      setting: true,
+    let rawVideoUrl = "";
+    const artConfig = {
+      container: playerContainerRef.current,
+      poster: getImageUrl(currentEpisode.image),
+      cover: getImageUrl(currentEpisode.image),
+      autoSize: false,
+      width: "100%",
+      height: "400px",
+      volume: 0.5,
       fullscreen: true,
-      theme: "#8b5cf6",
+      flip: true,
+      rotate: true,
+      playbackRate: true,
+      aspectRatio: false,
+      setting: true,
+      theme: "#c026d3",
+      // Set crossOrigin for proper key and segment loading.
+      crossOrigin: "anonymous",
+      plugins: [],
     };
 
-    // Create new ArtPlayer instance.
-    const newPlayer = new ArtPlayer(artOptions);
+    // ----- PAHE Branch: Ensure m3u8 (and key) are playable -----
+    if (currentProvider?.providerId === "pahe") {
+      const chosenEndpoint = getNextPaheEndpoint();
+      let sourceUrl = episodeDetails.sources[0].url;
+      // Wrap the source URL only if it is not already wrapped.
+      if (!paheEndpoints.some((ep) => sourceUrl.startsWith(ep))) {
+        rawVideoUrl = `${chosenEndpoint}?url=${encodeURIComponent(sourceUrl)}`;
+      } else {
+        rawVideoUrl = sourceUrl;
+      }
+      artConfig.type = "m3u8"; // Force m3u8 playback
 
-    // If subtitle is available, create and add a toggle button.
-    if (subtitleUrl) {
-      const btn = document.createElement("button");
-      btn.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-          <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM2 12h20"></path>
-          <path d="M12 16a4 4 0 0 0 4-4V6"></path>
-          <path d="M8 12h8"></path>
-        </svg>`;
-      btn.title = "Toggle Subtitles";
-      btn.className = "artplayer-control-btn";
-      btn.addEventListener("click", () => {
-        newPlayer.subtitle.toggle();
-      });
+      // Override the m3u8 custom loader so that all sub‑requests (including key requests)
+      // are wrapped only once using the chosen pahe endpoint.
+      artConfig.customType = {
+        m3u8: (video, url) => {
+          class CustomLoader extends Hls.DefaultConfig.loader {
+            load(context, config, callbacks) {
+              // If the context URL is not already wrapped by any pahe endpoint, wrap it.
+              if (!paheEndpoints.some((ep) => context.url.startsWith(ep))) {
+                context.url = `${chosenEndpoint}?url=${encodeURIComponent(context.url)}`;
+              }
+              super.load(context, config, callbacks);
+            }
+            abort() {
+              console.log("Pahe: abort called but ignored.");
+            }
+          }
+          const hls = new Hls({
+            loader: CustomLoader,
+          });
+          hls.loadSource(url);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            console.error("HLS error:", event, data);
+          });
+          return hls;
+        },
+      };
 
-      // Append the button to the ArtPlayer control bar.
-      setTimeout(() => {
-        const container = document.getElementById("player");
-        const controlBar =
-          container.querySelector(".artplayer-controller") ||
-          container.querySelector(".artplayer-controls");
-        if (controlBar) {
-          controlBar.appendChild(btn);
-        } else {
-          container.appendChild(btn);
-        }
-      }, 0);
+      if (episodeDetails.skips) {
+        artConfig.plugins.push((art) => {
+          art.on("loadedmetadata", () => {
+            addIntroOutroMarkers(art, episodeDetails.skips);
+          });
+          return () => {};
+        });
+      }
+    } else if (currentProvider?.providerId === "zaza") {
+      rawVideoUrl = `/api/gzaza?url=${encodeURIComponent(episodeDetails.sources[0].url)}`;
+      artConfig.type = "m3u8"; // Force m3u8 playback
+      artConfig.customType = {
+        m3u8: (video, url) => {
+          class CustomLoader extends Hls.DefaultConfig.loader {
+            load(context, config, callbacks) {
+              if (context.url && !context.url.startsWith("/api/gzaza?url=")) {
+                context.url = `/api/gzaza?url=${encodeURIComponent(context.url)}`;
+              }
+              super.load(context, config, callbacks);
+            }
+          }
+          const hls = new Hls({
+            loader: CustomLoader,
+          });
+          hls.loadSource(url);
+          hls.attachMedia(video);
+          return hls;
+        },
+      };
+      if (episodeDetails.skips) {
+        artConfig.plugins.push((art) => {
+          art.on("loadedmetadata", () => {
+            addIntroOutroMarkers(art, episodeDetails.skips);
+          });
+          return () => {};
+        });
+      }
+    } else if (currentProvider?.providerId === "strix") {
+      rawVideoUrl = episodeDetails.sources[0].url;
+      if (episodeDetails.skips) {
+        artConfig.plugins.push((art) => {
+          art.on("loadedmetadata", () => {
+            addIntroOutroMarkers(art, episodeDetails.skips);
+          });
+          return () => {};
+        });
+      }
+    } else {
+      rawVideoUrl = episodeDetails.sources[0].url;
     }
 
-    // Initialize HLS for quality selection if applicable.
-    if (url.includes("m3u8") && Hls.isSupported()) {
-      const hls = new Hls();
-      hls.loadSource(url);
-      hls.attachMedia(newPlayer.video);
+    artConfig.url = rawVideoUrl;
 
-      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-        console.log("Manifest parsed:", data);
-        setQualityLevels(data.levels);
-        newPlayer.video.play();
-      });
+    // Initialize ArtPlayer.
+    const art = new ArtPlayer(artConfig);
+    artPlayerRef.current = art;
 
-      hlsRef.current = hls;
-    }
-
-    setPlayer(newPlayer);
+    art.on("loadedmetadata", () => {
+      console.log("ArtPlayer loaded metadata");
+    });
+    art.on("error", (error) => {
+      console.error("ArtPlayer error:", error);
+    });
 
     return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
+      if (artPlayerRef.current) {
+        artPlayerRef.current.destroy();
+        artPlayerRef.current = null;
       }
-      newPlayer.destroy();
     };
-  }, [videoSource, isDub]);
+  }, [currentEpisode, episodeDetails, currentProvider]);
 
-  // Automatically load the first episode if none is selected.
+  // Update cookie when provider, episode, or audio changes.
   useEffect(() => {
-    if (episodes.length > 0 && !currentEpisode) {
-      handleEpisodeSelect(episodes[0]);
-    }
-  }, [episodes]);
+    if (!currentProvider || !currentEpisode) return;
+    const settings = {
+      provider: currentProvider.providerId,
+      episode: currentEpisode.number,
+      audio: audioTrack,
+    };
+    setCookie(cookieKey, encodeURIComponent(JSON.stringify(settings)));
+  }, [currentProvider, currentEpisode, audioTrack, cookieKey]);
 
-  // Handle episode selection.
-  const handleEpisodeSelect = async (episode) => {
-    try {
-      setCurrentEpisode(episode);
-      const res = await fetch(
-        `/api/episodes?directory_name=${directoryName}&ep_id=${episode.ep_id}`
-      );
-      const data = await res.json();
-      setVideoSource(data); // Contains both sub and dub sources.
+  // Determine if the gwatch API returned an empty response.
+  const isEpisodeUnavailable =
+    episodeDetails && Object.keys(episodeDetails).length === 0;
 
-      // Reset quality levels when switching episodes.
-      setQualityLevels([]);
-    } catch (error) {
-      console.error("Error loading episode:", error);
-    }
-  };
-
-  // Toggle between dub and sub; also save preference to cookie.
-  const toggleDubSub = () => {
-    const newIsDub = !isDub;
-    setIsDub(newIsDub);
-    setCookie("videoLang", newIsDub ? "dub" : "sub");
-  };
-
-  // Handle quality change and store preference in cookie.
-  const handleQualityChange = (e) => {
-    const selected = parseInt(e.target.value, 10);
-    setSelectedQuality(isNaN(selected) ? -1 : selected);
-    setCookie("videoQuality", isNaN(selected) ? -1 : selected);
-    if (hlsRef.current) {
-      hlsRef.current.currentLevel = isNaN(selected) ? -1 : selected;
-    }
-  };
-
-  // Filter and paginate episodes.
-  const filteredEpisodes = episodes.filter(
-    (ep) =>
-      ep.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ep.ep.includes(searchQuery)
-  );
+  const filteredEpisodes = episodes.filter((ep) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      ep.number.toString().includes(query) ||
+      (ep.description && ep.description.toLowerCase().includes(query))
+    );
+  });
+  const startIndex = (currentPage - 1) * episodesPerPage;
   const paginatedEpisodes = filteredEpisodes.slice(
-    (currentPage - 1) * 100,
-    currentPage * 100
+    startIndex,
+    startIndex + episodesPerPage
   );
+
+  const handleEpisodeSelect = (episode) => {
+    setCurrentEpisode(episode);
+  };
+  const handleProviderSelect = (provider) => {
+    setCurrentProvider(provider);
+    setAudioTrack("sub");
+  };
+  const handleNextPage = () => setCurrentPage((p) => p + 1);
+  const handlePrevPage = () => setCurrentPage((p) => Math.max(1, p - 1));
+  const hasAnyDub = currentProvider?.episodes?.some((ep) => ep.hasDub === true);
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Video Player Container */}
-        {videoSource ? (
-          <div className="mb-8">
-            <div
-              id="player"
-              className="bg-gray-900 rounded-lg overflow-hidden aspect-video"
-            ></div>
-            {qualityLevels.length > 0 && (
-              <div className="flex items-center justify-end mt-2">
-                <Sliders className="mr-2" size={24} />
-                <select
-                  value={selectedQuality.toString()}
-                  onChange={handleQualityChange}
-                  className="bg-gray-800 text-white px-2 py-1 rounded-md focus:outline-none"
-                >
-                  <option value="-1">Auto (Best)</option>
-                  {qualityLevels.map((level, index) => (
-                    <option key={index} value={index.toString()}>
-                      {level.height}p - {Math.round(level.bitrate / 1000)} Mbps
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-        ) : (
-          <Skeleton className="h-[400px] w-full rounded-lg mb-8" />
-        )}
-
-        {/* Header Controls */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
-          <h1 className="text-2xl font-bold text-purple-400">{animeTitle}</h1>
-          <button
-            onClick={toggleDubSub}
-            className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg w-full md:w-auto"
-          >
-            {isDub ? "Switch to Sub" : "Switch to Dub"}
-          </button>
+    <div className="min-h-screen bg-[#121212] text-white flex">
+      {/* LEFT SIDEBAR: Up Next */}
+      <div className="w-[350px] border-r border-gray-800 flex flex-col">
+        <div className="p-4 border-b border-gray-800">
+          <h2 className="text-xl font-bold mb-2">Up Next</h2>
+          <input
+            type="text"
+            placeholder="Search episodes..."
+            className="w-full p-2 rounded bg-[#1f1f1f] text-white outline-none"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
         </div>
-
-        {/* Episode Grid with Search and Pagination */}
-        <div className="mb-8">
-          <h2 className="mb-4 text-lg font-semibold">Episodes</h2>
-          <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
-            <input
-              type="text"
-              placeholder="Search episodes..."
-              className="bg-gray-800 text-white px-4 py-2 rounded-lg w-full sm:w-64"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <div className="flex gap-2">
+        <div
+          className="p-4 space-y-2 overflow-y-auto"
+          style={{ maxHeight: "400px" }}
+        >
+          {loading ? (
+            <Skeleton className="h-8 w-full" />
+          ) : paginatedEpisodes.length > 0 ? (
+            paginatedEpisodes.map((ep) => (
               <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="bg-purple-600 hover:bg-purple-700 p-2 rounded-full"
-              >
-                <ChevronLeft size={24} />
-              </button>
-              <button
-                onClick={() => setCurrentPage((p) => p + 1)}
-                className="bg-purple-600 hover:bg-purple-700 p-2 rounded-full"
-              >
-                <ChevronRight size={24} />
-              </button>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-10 gap-2">
-            {paginatedEpisodes.map((episode) => (
-              <button
-                key={episode.ep_id}
-                onClick={() => handleEpisodeSelect(episode)}
-                className={`p-2 rounded-lg text-sm ${
-                  currentEpisode?.ep_id === episode.ep_id
-                    ? "bg-purple-600 text-white"
-                    : "bg-gray-800 hover:bg-gray-700"
+                key={ep.id}
+                onClick={() => handleEpisodeSelect(ep)}
+                className={`flex items-center p-2 rounded transition-colors w-full text-left ${
+                  currentEpisode?.id === ep.id
+                    ? "bg-purple-700"
+                    : "bg-[#1f1f1f] hover:bg-[#2a2a2a]"
                 }`}
               >
-                Ep {episode.ep}
+                {ep.image && (
+                  <img
+                    src={getImageUrl(ep.image)}
+                    alt={`Episode ${ep.number}`}
+                    className="w-14 h-14 object-cover rounded mr-2"
+                  />
+                )}
+                <div className="flex-1">
+                  <div className="font-semibold">Episode {ep.number}</div>
+                  <div className="text-xs text-gray-300">
+                    {ep.description?.slice(0, 50) || "No description"}...
+                  </div>
+                </div>
+              </button>
+            ))
+          ) : (
+            <div>No episodes found.</div>
+          )}
+        </div>
+        <div className="p-4 flex justify-between border-t border-gray-800">
+          <button
+            onClick={handlePrevPage}
+            className="flex items-center bg-[#1f1f1f] hover:bg-[#2a2a2a] px-3 py-1 rounded transition-colors"
+          >
+            <ChevronLeft size={18} className="mr-1" />
+            Prev
+          </button>
+          <button
+            onClick={handleNextPage}
+            className="flex items-center bg-[#1f1f1f] hover:bg-[#2a2a2a] px-3 py-1 rounded transition-colors"
+          >
+            Next
+            <ChevronRight size={18} className="ml-1" />
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col">
+        <div className="p-4">
+          {currentEpisode ? (
+            isEpisodeUnavailable ? (
+              <div className="w-full h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
+                {`${audioTrack.toUpperCase()} track is not available for this provider. Please change the server.`}
+              </div>
+            ) : (
+              <div
+                ref={playerContainerRef}
+                className="w-full h-[400px] bg-[#1f1f1f] rounded overflow-hidden"
+              />
+            )
+          ) : (
+            <div className="w-full h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
+              Select an episode
+            </div>
+          )}
+        </div>
+        <div className="bg-[#1f1f1f] p-4">
+          {currentEpisode && (
+            <div className="mb-3">
+              <div className="font-bold text-purple-400">You are Watching</div>
+              <div className="text-lg font-semibold">Episode {currentEpisode.number}</div>
+            </div>
+          )}
+          <div className="mb-4">
+            <span className="font-bold text-gray-300 mr-2">Audio:</span>
+            <button
+              onClick={() => setAudioTrack("sub")}
+              className={`inline-block px-3 py-1 rounded mr-2 mb-2 transition-colors ${
+                audioTrack === "sub" ? "bg-purple-600" : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
+              }`}
+            >
+              SUB
+            </button>
+            {hasAnyDub && (
+              <button
+                onClick={() => setAudioTrack("dub")}
+                className={`inline-block px-3 py-1 rounded mr-2 mb-2 transition-colors ${
+                  audioTrack === "dub" ? "bg-purple-600" : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
+                }`}
+              >
+                DUB
+              </button>
+            )}
+            {!hasAnyDub && audioTrack === "dub" && (
+              <span className="text-red-400 ml-2">
+                No dub episodes available for this provider.
+              </span>
+            )}
+          </div>
+          <div className="mb-2">
+            <span className="font-bold text-gray-300 mr-2">Providers:</span>
+            {providers.map((provider) => (
+              <button
+                key={provider.providerId}
+                onClick={() => handleProviderSelect(provider)}
+                className={`inline-block px-3 py-1 rounded mr-2 mb-2 transition-colors ${
+                  currentProvider?.providerId === provider.providerId
+                    ? "bg-purple-600"
+                    : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
+                }`}
+              >
+                {provider.providerId}
               </button>
             ))}
           </div>
-        </div>
-
-        {!videoSource && (
-          <div className="text-center text-gray-400">
-            Loading video source...
+          <div className="text-sm text-gray-400 mt-2">
+            If the current provider or track doesn’t work, please try switching.
           </div>
-        )}
-
-        {videoSource &&
-          !(isDub
-            ? videoSource.dub?.m3u8 || videoSource.sub?.m3u8
-            : videoSource.sub?.m3u8) && (
-            <div className="text-center text-red-400">
-              Video source not available
-            </div>
-          )}
+        </div>
       </div>
     </div>
   );

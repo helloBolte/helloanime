@@ -111,7 +111,7 @@ export default function Navbar() {
 
   return (
     <motion.nav
-      className="bg-gray-800 py-4 px-4 sm:px-6 lg:px-8 overflow-visible"
+      className="bg-gray-800 px-4 sm:px-6 lg:px-8 overflow-visible"
       initial="initial"
       animate="animate"
     >
