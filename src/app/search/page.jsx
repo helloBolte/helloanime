@@ -1,7 +1,8 @@
 "use client";
-import { useState, useEffect, Suspense } from "react";
+
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { SearchResults } from "./SearchResults";
+import { SearchResults } from "./SearchResults"; // ensure this component exists
 
 const ANILIST_API = "https://graphql.anilist.co";
 
@@ -48,9 +49,10 @@ async function fetchAniListData(query, page = 1) {
   return data.data.Page.media;
 }
 
-export default function SearchPage() {
+// Inner component that uses useSearchParams
+function InnerSearchPage() {
   const searchParams = useSearchParams();
-  const query = searchParams.get("q") || ""; // Use `.get()` instead of direct access
+  const query = searchParams.get("q") || "";
   const [animeData, setAnimeData] = useState([]);
   const [page, setPage] = useState(1);
 
@@ -67,9 +69,8 @@ export default function SearchPage() {
           Search Result: {query}
         </h1>
 
-        <Suspense fallback={<SearchSkeleton />}>
-          <SearchResults initialData={animeData} initialQuery={query} />
-        </Suspense>
+        {/* Render the search results */}
+        <SearchResults initialData={animeData} initialQuery={query} />
 
         {/* Pagination Controls */}
         <div className="flex justify-center mt-6">
@@ -93,19 +94,20 @@ export default function SearchPage() {
   );
 }
 
+// Main export wraps InnerSearchPage in a Suspense boundary
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<SearchSkeleton />}>
+      <InnerSearchPage />
+    </Suspense>
+  );
+}
+
+// Fallback skeleton component for Suspense
 function SearchSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-8">
-      {[...Array(10)].map((_, index) => (
-        <div key={index} className="bg-gray-800 rounded-lg overflow-hidden shadow-lg">
-          <div className="w-full h-64 bg-gray-700 animate-pulse" />
-          <div className="p-4">
-            <div className="h-6 w-3/4 bg-gray-700 animate-pulse mb-2" />
-            <div className="h-4 w-1/2 bg-gray-700 animate-pulse mb-2" />
-            <div className="h-4 w-full bg-gray-700 animate-pulse" />
-          </div>
-        </div>
-      ))}
+    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+      <p>Loading...</p>
     </div>
   );
 }
