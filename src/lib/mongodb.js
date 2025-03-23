@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { MongoClient } from 'mongodb';
 
 if (!process.env.MONGODB_URI) {
