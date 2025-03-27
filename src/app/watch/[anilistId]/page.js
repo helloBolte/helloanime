@@ -229,7 +229,8 @@ export default function WatchPage() {
       cover: getImageUrl(currentEpisode.image),
       autoSize: false,
       width: "100%",
-      height: "400px",
+      // Responsive height: 200px on small, 300px on sm, 400px on md+
+      height: "200px sm:h-[300px] md:h-[400px]",
       volume: 0.5,
       fullscreen: true,
       flip: true,
@@ -238,8 +239,9 @@ export default function WatchPage() {
       aspectRatio: false,
       setting: true,
       theme: "#c026d3",
-      // Set crossOrigin for proper key and segment loading.
       crossOrigin: "anonymous",
+      // Enable autoplay on initial load
+      autoplay: true,
       plugins: [],
     };
 
@@ -247,21 +249,16 @@ export default function WatchPage() {
     if (currentProvider?.providerId === "pahe") {
       const chosenEndpoint = getNextPaheEndpoint();
       let sourceUrl = episodeDetails.sources[0].url;
-      // Wrap the source URL only if it is not already wrapped.
       if (!paheEndpoints.some((ep) => sourceUrl.startsWith(ep))) {
         rawVideoUrl = `${chosenEndpoint}?url=${encodeURIComponent(sourceUrl)}`;
       } else {
         rawVideoUrl = sourceUrl;
       }
-      artConfig.type = "m3u8"; // Force m3u8 playback
-
-      // Override the m3u8 custom loader so that all sub‑requests (including key requests)
-      // are wrapped only once using the chosen pahe endpoint.
+      artConfig.type = "m3u8";
       artConfig.customType = {
         m3u8: (video, url) => {
           class CustomLoader extends Hls.DefaultConfig.loader {
             load(context, config, callbacks) {
-              // If the context URL is not already wrapped by any pahe endpoint, wrap it.
               if (!paheEndpoints.some((ep) => context.url.startsWith(ep))) {
                 context.url = `${chosenEndpoint}?url=${encodeURIComponent(context.url)}`;
               }
@@ -282,7 +279,6 @@ export default function WatchPage() {
           return hls;
         },
       };
-
       if (episodeDetails.skips) {
         artConfig.plugins.push((art) => {
           art.on("loadedmetadata", () => {
@@ -293,7 +289,7 @@ export default function WatchPage() {
       }
     } else if (currentProvider?.providerId === "zaza") {
       rawVideoUrl = `/api/gzaza?url=${encodeURIComponent(episodeDetails.sources[0].url)}`;
-      artConfig.type = "m3u8"; // Force m3u8 playback
+      artConfig.type = "m3u8";
       artConfig.customType = {
         m3u8: (video, url) => {
           class CustomLoader extends Hls.DefaultConfig.loader {
@@ -335,8 +331,6 @@ export default function WatchPage() {
     }
 
     artConfig.url = rawVideoUrl;
-
-    // Initialize ArtPlayer.
     const art = new ArtPlayer(artConfig);
     artPlayerRef.current = art;
 
@@ -366,7 +360,6 @@ export default function WatchPage() {
     setCookie(cookieKey, encodeURIComponent(JSON.stringify(settings)));
   }, [currentProvider, currentEpisode, audioTrack, cookieKey]);
 
-  // Determine if the gwatch API returned an empty response.
   const isEpisodeUnavailable =
     episodeDetails && Object.keys(episodeDetails).length === 0;
 
@@ -395,10 +388,84 @@ export default function WatchPage() {
   const hasAnyDub = currentProvider?.episodes?.some((ep) => ep.hasDub === true);
 
   return (
-    <div className="min-h-screen bg-[#121212] text-white flex">
-      {/* LEFT SIDEBAR: Up Next */}
-      <div className="w-[350px] border-r border-gray-800 flex flex-col">
-        <div className="p-4 border-b border-gray-800">
+    <div className="min-h-screen bg-[#121212] text-white flex flex-col md:flex-row">
+      {/* MAIN CONTENT (Video player and details) */}
+      <div className="order-1 md:order-2 flex-1 flex flex-col">
+        <div className="p-4">
+          {currentEpisode ? (
+            isEpisodeUnavailable ? (
+              <div className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
+                {`${audioTrack.toUpperCase()} track is not available for this provider. Please change the server.`}
+              </div>
+            ) : (
+              <div
+                ref={playerContainerRef}
+                className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] rounded overflow-hidden"
+              />
+            )
+          ) : (
+            <div className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
+              Select an episode
+            </div>
+          )}
+        </div>
+        <div className="bg-[#1f1f1f] p-4">
+          {currentEpisode && (
+            <div className="mb-3">
+              <div className="font-bold text-purple-400">You are Watching</div>
+              <div className="text-lg font-semibold">Episode {currentEpisode.number}</div>
+            </div>
+          )}
+          <div className="mb-4">
+            <span className="font-bold text-gray-300 mr-2">Audio:</span>
+            <button
+              onClick={() => setAudioTrack("sub")}
+              className={`inline-block px-3 py-1 rounded mr-2 mb-2 transition-colors ${
+                audioTrack === "sub" ? "bg-purple-600" : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
+              }`}
+            >
+              SUB
+            </button>
+            {hasAnyDub && (
+              <button
+                onClick={() => setAudioTrack("dub")}
+                className={`inline-block px-3 py-1 rounded mr-2 mb-2 transition-colors ${
+                  audioTrack === "dub" ? "bg-purple-600" : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
+                }`}
+              >
+                DUB
+              </button>
+            )}
+            {!hasAnyDub && audioTrack === "dub" && (
+              <span className="text-red-400 ml-2">
+                No dub episodes available for this provider.
+              </span>
+            )}
+          </div>
+          <div className="mb-2">
+            <span className="font-bold text-gray-300 mr-2">Providers:</span>
+            {providers.map((provider) => (
+              <button
+                key={provider.providerId}
+                onClick={() => handleProviderSelect(provider)}
+                className={`inline-block px-3 py-1 rounded mr-2 mb-2 transition-colors ${
+                  currentProvider?.providerId === provider.providerId
+                    ? "bg-purple-600"
+                    : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
+                }`}
+              >
+                {provider.providerId}
+              </button>
+            ))}
+          </div>
+          <div className="text-sm text-gray-400 mt-2">
+            If the current provider or track doesn’t work, please try switching.
+          </div>
+        </div>
+      </div>
+      {/* EPISODE SELECTOR (Sidebar) - Shown last on mobile */}
+      <div className="order-3 md:order-1 w-full md:w-[350px] border-t md:border-t-0 md:border-r border-gray-800 flex flex-col">
+        <div className="p-4 border-b md:border-b-0">
           <h2 className="text-xl font-bold mb-2">Up Next</h2>
           <input
             type="text"
@@ -462,79 +529,6 @@ export default function WatchPage() {
             Next
             <ChevronRight size={18} className="ml-1" />
           </button>
-        </div>
-      </div>
-      <div className="flex-1 flex flex-col">
-        <div className="p-4">
-          {currentEpisode ? (
-            isEpisodeUnavailable ? (
-              <div className="w-full h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
-                {`${audioTrack.toUpperCase()} track is not available for this provider. Please change the server.`}
-              </div>
-            ) : (
-              <div
-                ref={playerContainerRef}
-                className="w-full h-[400px] bg-[#1f1f1f] rounded overflow-hidden"
-              />
-            )
-          ) : (
-            <div className="w-full h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
-              Select an episode
-            </div>
-          )}
-        </div>
-        <div className="bg-[#1f1f1f] p-4">
-          {currentEpisode && (
-            <div className="mb-3">
-              <div className="font-bold text-purple-400">You are Watching</div>
-              <div className="text-lg font-semibold">Episode {currentEpisode.number}</div>
-            </div>
-          )}
-          <div className="mb-4">
-            <span className="font-bold text-gray-300 mr-2">Audio:</span>
-            <button
-              onClick={() => setAudioTrack("sub")}
-              className={`inline-block px-3 py-1 rounded mr-2 mb-2 transition-colors ${
-                audioTrack === "sub" ? "bg-purple-600" : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
-              }`}
-            >
-              SUB
-            </button>
-            {hasAnyDub && (
-              <button
-                onClick={() => setAudioTrack("dub")}
-                className={`inline-block px-3 py-1 rounded mr-2 mb-2 transition-colors ${
-                  audioTrack === "dub" ? "bg-purple-600" : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
-                }`}
-              >
-                DUB
-              </button>
-            )}
-            {!hasAnyDub && audioTrack === "dub" && (
-              <span className="text-red-400 ml-2">
-                No dub episodes available for this provider.
-              </span>
-            )}
-          </div>
-          <div className="mb-2">
-            <span className="font-bold text-gray-300 mr-2">Providers:</span>
-            {providers.map((provider) => (
-              <button
-                key={provider.providerId}
-                onClick={() => handleProviderSelect(provider)}
-                className={`inline-block px-3 py-1 rounded mr-2 mb-2 transition-colors ${
-                  currentProvider?.providerId === provider.providerId
-                    ? "bg-purple-600"
-                    : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
-                }`}
-              >
-                {provider.providerId}
-              </button>
-            ))}
-          </div>
-          <div className="text-sm text-gray-400 mt-2">
-            If the current provider or track doesn’t work, please try switching.
-          </div>
         </div>
       </div>
     </div>
