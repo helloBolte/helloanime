@@ -23,22 +23,6 @@ export default function Navbar() {
   const suggestionRef = useRef(null);
   const searchRef = useRef(null);
 
-  // Animation variants for Framer Motion
-  const variants = {
-    logo: {
-      initial: { x: -50, opacity: 0 },
-      animate: { x: 0, opacity: 1 },
-    },
-    menu: {
-      initial: { y: -20, opacity: 0 },
-      animate: { y: 0, opacity: 1 },
-    },
-    search: {
-      initial: { scale: 0.95, opacity: 0 },
-      animate: { scale: 1, opacity: 1 },
-    },
-  };
-
   useEffect(() => {
     const fetchSuggestions = async () => {
       if (debouncedQuery.length > 2) {
@@ -76,177 +60,51 @@ export default function Navbar() {
     router.push(`/anime/${suggestion.id}`);
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        suggestionRef.current &&
-        !suggestionRef.current.contains(event.target) &&
-        searchRef.current &&
-        !searchRef.current.contains(event.target)
-      ) {
-        setSuggestions([]);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'RELEASING':
-        return 'text-green-400';
-      case 'FINISHED':
-        return 'text-blue-400';
-      case 'NOT_YET_RELEASED':
-        return 'text-yellow-400';
-      case 'CANCELLED':
-        return 'text-red-400';
-      default:
-        return 'text-gray-400';
-    }
-  };
-
   return (
-    <motion.nav
-      className="bg-gray-800 px-4 sm:px-6 lg:px-8 overflow-visible"
-      initial="initial"
-      animate="animate"
-    >
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between">
-          {/* Logo with Updated Styles */}
-          <motion.div
-            variants={variants.logo}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-          >
-            <Link
-              href="/"
-              className="flex items-center hover:text-purple-300 transition-colors"
-            >
-              <Logo></Logo>
-            </Link>
-          </motion.div>
-
-          {/* Menu and Search */}
-          <div className="flex items-center">
-            {/* Desktop Search */}
-            <motion.div
-              className="hidden sm:block sm:w-64 lg:w-96 mr-4"
-              variants={variants.search}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-            >
-              <SearchForm
-                query={query}
-                setQuery={setQuery}
-                handleSearch={handleSearch}
-                suggestions={suggestions}
-                handleSuggestionClick={handleSuggestionClick}
-                suggestionRef={suggestionRef}
-                searchRef={searchRef}
-                isLoading={isLoading}
-                getStatusColor={getStatusColor}
-              />
-            </motion.div>
-
-            {/* Desktop Login Button */}
-            <motion.div
-              className="hidden sm:block"
-              variants={variants.menu}
-              transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
-            >
-              <Button
-                variant="secondary"
-                className="bg-purple-600 text-white hover:bg-purple-700 transition-colors"
-              >
-                Login
-              </Button>
-            </motion.div>
-
-            {/* Mobile Menu and Login Button */}
-            <motion.div
-              className="flex items-center sm:hidden"
-              variants={variants.menu}
-              transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
-            >
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:text-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 border border-purple-300 mr-2"
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-              >
-                {isMenuOpen ? (
-                  <X size={24} />
-                ) : (
-                  <Search size={24} style={{ fontWeight: 'bold' }} />
-                )}
-              </Button>
-              <Button
-                variant="secondary"
-                className="bg-purple-600 text-white hover:bg-purple-700 transition-colors"
-              >
-                Login
-              </Button>
-            </motion.div>
+    <nav className="bg-gray-800 px-4 sm:px-6 lg:px-8 overflow-visible">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <Link href="/" className="flex items-center hover:text-purple-300 transition-colors">
+          <Logo />
+        </Link>
+        <div className="flex items-center">
+          <div className="hidden sm:block sm:w-64 lg:w-96 mr-4">
+            <SearchForm 
+              query={query} 
+              setQuery={setQuery} 
+              handleSearch={handleSearch} 
+              suggestions={suggestions} 
+              handleSuggestionClick={handleSuggestionClick} 
+              suggestionRef={suggestionRef} 
+              searchRef={searchRef} 
+              isLoading={isLoading} 
+            />
           </div>
-        </div>
-
-        {/* Mobile Search */}
-        <div className={`mt-4 sm:hidden ${isMenuOpen ? 'block' : 'hidden'}`}>
-          <SearchForm
-            query={query}
-            setQuery={setQuery}
-            handleSearch={handleSearch}
-            suggestions={suggestions}
-            handleSuggestionClick={handleSuggestionClick}
-            suggestionRef={suggestionRef}
-            searchRef={searchRef}
-            isLoading={isLoading}
-            getStatusColor={getStatusColor}
-          />
+          <Button variant="secondary" className="hidden sm:block bg-purple-600 text-white hover:bg-purple-700">
+            Login
+          </Button>
         </div>
       </div>
-    </motion.nav>
+    </nav>
   );
 }
 
-function SearchForm({
-  query,
-  setQuery,
-  handleSearch,
-  suggestions,
-  handleSuggestionClick,
-  suggestionRef,
-  searchRef,
-  isLoading,
-  getStatusColor,
-}) {
+function SearchForm({ query, setQuery, handleSearch, suggestions, handleSuggestionClick, suggestionRef, searchRef, isLoading }) {
   return (
     <div className="relative w-full" ref={searchRef}>
       <form onSubmit={handleSearch} className="relative">
-        <div className="relative w-full">
-          <Input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search for anime..."
-            className="w-full pr-10 bg-gray-800 text-white border border-purple-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-400 placeholder-gray-400"
-          />
-          <Button
-            type="submit"
-            className="absolute right-0 top-0 bottom-0 bg-purple-600 text-white px-3 rounded-r-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400"
-          >
-            <Search size={20} />
-          </Button>
-        </div>
+        <Input 
+          type="text" 
+          value={query} 
+          onChange={(e) => setQuery(e.target.value)} 
+          placeholder="Search for anime..." 
+          className="w-full pr-10 bg-gray-800 text-white border border-purple-600 rounded-md"
+        />
+        <Button type="submit" className="absolute right-0 top-0 bottom-0 bg-purple-600 text-white px-3 rounded-r-md">
+          <Search size={20} />
+        </Button>
       </form>
       {(suggestions.length > 0 || isLoading) && (
-        <div
-          ref={suggestionRef}
-          className="absolute z-40 w-full mt-1 bg-gray-800 border border-purple-600 rounded-md shadow-lg max-h-60 overflow-y-auto"
-        >
+        <div ref={suggestionRef} className="absolute z-40 w-full mt-1 bg-gray-800 border border-purple-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
           {isLoading ? (
             [...Array(3)].map((_, index) => (
               <div key={index} className="flex items-center p-2">
@@ -259,44 +117,10 @@ function SearchForm({
             ))
           ) : (
             suggestions.map((suggestion) => (
-              <button
-                key={suggestion.id}
-                className="w-full text-left flex items-center p-2 hover:bg-gray-700 cursor-pointer text-white"
-                onClick={() => handleSuggestionClick(suggestion)}
-              >
-                <img
-                  src={suggestion.coverImage.medium || '/placeholder.svg'}
-                  alt={suggestion.title.romaji}
-                  className="w-10 h-14 object-cover mr-2"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = '/placeholder-image.jpg';
-                  }}
-                />
+              <button key={suggestion.id} className="w-full text-left flex items-center p-2 hover:bg-gray-700 cursor-pointer text-white" onClick={() => handleSuggestionClick(suggestion)}>
+                <img src={suggestion.coverImage.medium || '/placeholder.svg'} alt={suggestion.title.romaji} className="w-10 h-14 object-cover mr-2" />
                 <div className="flex-1">
-                  <span className="line-clamp-1">
-                    {suggestion?.title?.english || suggestion?.title?.romaji}
-                  </span>
-                  <div className="flex items-center text-sm mt-1">
-                    <Radio
-                      className={`w-3 h-3 mr-1 ${getStatusColor(
-                        suggestion.status
-                      )}`}
-                    />
-                    <span
-                      className={`text-xs ${getStatusColor(suggestion.status)}`}
-                    >
-                      {suggestion.status === 'RELEASING'
-                        ? 'Airing'
-                        : suggestion.status === 'FINISHED'
-                        ? 'Finished'
-                        : suggestion.status === 'NOT_YET_RELEASED'
-                        ? 'Upcoming'
-                        : suggestion.status === 'CANCELLED'
-                        ? 'Cancelled'
-                        : 'Unknown'}
-                    </span>
-                  </div>
+                  <span className="line-clamp-1">{suggestion?.title?.english || suggestion?.title?.romaji}</span>
                 </div>
               </button>
             ))
@@ -321,10 +145,6 @@ async function fetchAniListData(query) {
             medium
             large
           }
-          averageScore
-          episodes
-          description
-          status
         }
       }
     }
