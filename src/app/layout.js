@@ -24,7 +24,7 @@ export default function RootLayout({ children }) {
             </main>
           </div>
           <BottomNavigation />
-          <div className="h-[calc(6rem+env(safe-area-inset-bottom))]" />
+          <div className="h-[calc(3rem+env(safe-area-inset-bottom))]" />
         </div>
       </body>
     </html>
