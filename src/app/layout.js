@@ -15,7 +15,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="flex flex-col h-screen">
+        <div className="flex flex-col h-svh">
           <Navbar />
           <div className="flex flex-1 overflow-hidden">
             <Sidebar />
@@ -24,7 +24,6 @@ export default function RootLayout({ children }) {
             </main>
           </div>
           <BottomNavigation />
-          <div className="h-[calc(3rem+env(safe-area-inset-bottom))]" />
         </div>
       </body>
     </html>
