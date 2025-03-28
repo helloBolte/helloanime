@@ -19,8 +19,9 @@ export default function RootLayout({ children }) {
           <Navbar />
           <div className="flex flex-1 overflow-hidden">
             <Sidebar />
-            <main className="flex-1 overflow-y-auto px-3 bg-black pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">
+            <main className="flex-1 overflow-y-auto px-3 bg-black md:pb-0">
               {children}
+              <div className="h-[calc(6rem+env(safe-area-inset-bottom))]" />
             </main>
           </div>
           <BottomNavigation />
