@@ -19,21 +19,22 @@ export default function BottomNavigation() {
   const pathname = usePathname()
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-800 overflow-visible relative z-30">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-800 relative z-30">
       <div className="flex justify-around h-16">
         {navItems.map((item) => {
           const isActive = pathname === item.href
 
           return (
-            <Link key={item.name} href={item.href}>
+            <Link key={item.name} href={item.href} className="inline-flex">
               <motion.div
+                className="inline-flex"
                 initial={false}
                 animate={
                   isActive
                     ? {
                         y: -10,
                         scale: 1.1,
-                        boxShadow: "0px 0px 10px rgba(168, 85, 247, 0.6)", // Adjusted shadow color
+                        boxShadow: "0px 0px 10px rgba(168, 85, 247, 0.6)",
                       }
                     : { y: 0, scale: 1, boxShadow: "none" }
                 }
@@ -42,20 +43,12 @@ export default function BottomNavigation() {
                 <Button
                   variant={isActive ? "bottomnav" : "ghost"}
                   size="icon"
-                  className={`flex flex-col h-full w-16 items-center justify-center gap-0 p-0 transition-all ${
+                  className={`flex flex-col items-center justify-center gap-0.5 transition-all ${
                     isActive ? "bg-purple-600" : "hover:bg-purple-600/30"
                   }`}
                 >
-                  <item.icon
-                    className={`h-10 w-10 ${
-                      isActive ? "text-white" : "text-white"
-                    }`}
-                  />
-                  <span
-                    className={`text-[10px] font-bold leading-tight ${
-                      isActive ? "text-white" : "text-white"
-                    }`}
-                  >
+                  <item.icon className="h-10 w-10 text-white" />
+                  <span className="text-[10px] font-bold leading-tight text-white">
                     {item.name}
                   </span>
                 </Button>
