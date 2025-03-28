@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useDebounce } from 'use-debounce';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Menu, Search, X, Radio } from 'lucide-react';
+import { Menu, Search, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,42 +61,84 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-gray-800 px-4 sm:px-6 lg:px-8 overflow-visible">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <Link href="/" className="flex items-center hover:text-purple-300 transition-colors">
-          <Logo />
-        </Link>
-        <div className="flex items-center">
-          <div className="hidden sm:block sm:w-64 lg:w-96 mr-4">
-            <SearchForm 
-              query={query} 
-              setQuery={setQuery} 
-              handleSearch={handleSearch} 
-              suggestions={suggestions} 
-              handleSuggestionClick={handleSuggestionClick} 
-              suggestionRef={suggestionRef} 
-              searchRef={searchRef} 
-              isLoading={isLoading} 
+    <>
+      <nav className="bg-gray-800 px-4 sm:px-6 lg:px-8 overflow-visible">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <Link href="/" className="flex items-center hover:text-purple-300 transition-colors">
+            <Logo />
+          </Link>
+          <div className="flex items-center">
+            {/* Desktop Search */}
+            <div className="hidden sm:block sm:w-64 lg:w-96 mr-4">
+              <SearchForm
+                query={query}
+                setQuery={setQuery}
+                handleSearch={handleSearch}
+                suggestions={suggestions}
+                handleSuggestionClick={handleSuggestionClick}
+                suggestionRef={suggestionRef}
+                searchRef={searchRef}
+                isLoading={isLoading}
+              />
+            </div>
+            {/* Desktop Login */}
+            <Button variant="secondary" className="hidden sm:block bg-purple-600 text-white hover:bg-purple-700">
+              Login
+            </Button>
+            {/* Mobile Menu Toggle */}
+            <div className="flex items-center sm:hidden">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-purple-300 mr-2"
+                onClick={() => setIsMenuOpen((prev) => !prev)}
+              >
+                {isMenuOpen ? <X size={24} /> : <Search size={24} />}
+              </Button>
+              <Button variant="secondary" className="bg-purple-600 text-white hover:bg-purple-700">
+                Login
+              </Button>
+            </div>
+          </div>
+        </div>
+        {/* Mobile Search Form with added vertical padding */}
+        {isMenuOpen && (
+          <div className="mt-4 sm:hidden pb-4">
+            <SearchForm
+              query={query}
+              setQuery={setQuery}
+              handleSearch={handleSearch}
+              suggestions={suggestions}
+              handleSuggestionClick={handleSuggestionClick}
+              suggestionRef={suggestionRef}
+              searchRef={searchRef}
+              isLoading={isLoading}
             />
           </div>
-          <Button variant="secondary" className="hidden sm:block bg-purple-600 text-white hover:bg-purple-700">
-            Login
-          </Button>
-        </div>
-      </div>
-    </nav>
+        )}
+      </nav>
+    </>
   );
 }
 
-function SearchForm({ query, setQuery, handleSearch, suggestions, handleSuggestionClick, suggestionRef, searchRef, isLoading }) {
+function SearchForm({
+  query,
+  setQuery,
+  handleSearch,
+  suggestions,
+  handleSuggestionClick,
+  suggestionRef,
+  searchRef,
+  isLoading,
+}) {
   return (
     <div className="relative w-full" ref={searchRef}>
       <form onSubmit={handleSearch} className="relative">
-        <Input 
-          type="text" 
-          value={query} 
-          onChange={(e) => setQuery(e.target.value)} 
-          placeholder="Search for anime..." 
+        <Input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search for anime..."
           className="w-full pr-10 bg-gray-800 text-white border border-purple-600 rounded-md"
         />
         <Button type="submit" className="absolute right-0 top-0 bottom-0 bg-purple-600 text-white px-3 rounded-r-md">
@@ -104,7 +146,10 @@ function SearchForm({ query, setQuery, handleSearch, suggestions, handleSuggesti
         </Button>
       </form>
       {(suggestions.length > 0 || isLoading) && (
-        <div ref={suggestionRef} className="absolute z-40 w-full mt-1 bg-gray-800 border border-purple-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
+        <div
+          ref={suggestionRef}
+          className="absolute z-40 w-full mt-1 bg-gray-800 border border-purple-600 rounded-md shadow-lg max-h-60 overflow-y-auto"
+        >
           {isLoading ? (
             [...Array(3)].map((_, index) => (
               <div key={index} className="flex items-center p-2">
@@ -117,10 +162,20 @@ function SearchForm({ query, setQuery, handleSearch, suggestions, handleSuggesti
             ))
           ) : (
             suggestions.map((suggestion) => (
-              <button key={suggestion.id} className="w-full text-left flex items-center p-2 hover:bg-gray-700 cursor-pointer text-white" onClick={() => handleSuggestionClick(suggestion)}>
-                <img src={suggestion.coverImage.medium || '/placeholder.svg'} alt={suggestion.title.romaji} className="w-10 h-14 object-cover mr-2" />
+              <button
+                key={suggestion.id}
+                className="w-full text-left flex items-center p-2 hover:bg-gray-700 cursor-pointer text-white"
+                onClick={() => handleSuggestionClick(suggestion)}
+              >
+                <img
+                  src={suggestion.coverImage.medium || '/placeholder.svg'}
+                  alt={suggestion.title.romaji}
+                  className="w-10 h-14 object-cover mr-2"
+                />
                 <div className="flex-1">
-                  <span className="line-clamp-1">{suggestion?.title?.english || suggestion?.title?.romaji}</span>
+                  <span className="line-clamp-1">
+                    {suggestion?.title?.english || suggestion?.title?.romaji}
+                  </span>
                 </div>
               </button>
             ))

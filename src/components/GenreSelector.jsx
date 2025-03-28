@@ -2,6 +2,7 @@
 import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
 
 const genres = [
   "Action",
@@ -86,12 +87,14 @@ export default function GenreSelector() {
         className="flex gap-2 overflow-x-auto whitespace-nowrap hide-scrollbar"
       >
         {genres.map((genre) => (
+          <Link href={`/genre/${genre}`} key={genre}>
           <button
             key={genre}
             className="px-3 py-1 bg-gray-800 text-white rounded-lg hover:bg-purple-600 hover:text-white text-sm transition-colors"
           >
             {genre}
           </button>
+          </Link>
         ))}
       </div>
 

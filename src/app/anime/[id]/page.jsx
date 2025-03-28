@@ -4,13 +4,16 @@ import { useState, useEffect, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Star, Calendar, Clock, Users, PlayCircle } from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import RecommendedAnime from '@/components/RecommendedAnime';
 
 function AnimeDetailContent({ anime }) {
+  // Determine if the anime is upcoming using AniList data.
+  const isUpcoming = anime.status === 'NOT_YET_RELEASED';
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'RELEASING':
@@ -27,7 +30,7 @@ function AnimeDetailContent({ anime }) {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
@@ -55,8 +58,10 @@ function AnimeDetailContent({ anime }) {
             <h1 className="text-3xl sm:text-4xl font-bold text-purple-400 mb-2">
               {anime.title.english || anime.title.romaji}
             </h1>
-            <h2 className="text-lg sm:text-xl text-purple-300 mb-4">{anime.title.native}</h2>
-            
+            <h2 className="text-lg sm:text-xl text-purple-300 mb-4">
+              {anime.title.native}
+            </h2>
+
             <div className="flex flex-wrap gap-2 mb-4">
               {anime.genres.map((genre) => (
                 <Link key={genre} href={`/genre/${genre.toLowerCase()}`}>
@@ -88,7 +93,10 @@ function AnimeDetailContent({ anime }) {
 
             <div className="mb-4 md:mb-6">
               <h3 className="text-xl font-semibold mb-2 text-purple-300">Synopsis</h3>
-              <p className="text-gray-300 line-clamp-3 sm:line-clamp-none" dangerouslySetInnerHTML={{ __html: anime.description }}></p>
+              <p
+                className="text-gray-300 line-clamp-3 sm:line-clamp-none"
+                dangerouslySetInnerHTML={{ __html: anime.description }}
+              ></p>
             </div>
           </div>
         </div>
@@ -97,19 +105,40 @@ function AnimeDetailContent({ anime }) {
           <div>
             <h3 className="text-2xl font-semibold mb-4 text-purple-400">Details</h3>
             <ul className="space-y-2 text-gray-300">
-              <li><strong>Format:</strong> {anime.format}</li>
-              <li><strong>Episodes:</strong> {anime.episodes}</li>
-              <li><strong>Status:</strong> <span className={getStatusColor(anime.status)}>{anime.status}</span></li>
-              <li><strong>Aired:</strong> {`${anime.startDate.year}-${anime.startDate.month}-${anime.startDate.day}`} to {anime.endDate.year ? `${anime.endDate.year}-${anime.endDate.month}-${anime.endDate.day}` : 'Present'}</li>
-              <li><strong>Season:</strong> {anime.season} {anime.seasonYear}</li>
-              <li><strong>Studio:</strong> {anime.studios.nodes[0]?.name || 'Unknown'}</li>
+              <li>
+                <strong>Format:</strong> {anime.format}
+              </li>
+              <li>
+                <strong>Episodes:</strong> {anime.episodes}
+              </li>
+              <li>
+                <strong>Status:</strong>{' '}
+                <span className={getStatusColor(anime.status)}>{anime.status}</span>
+              </li>
+              <li>
+                <strong>Aired:</strong>{' '}
+                {`${anime.startDate.year}-${anime.startDate.month}-${anime.startDate.day}`} to{' '}
+                {anime.endDate.year
+                  ? `${anime.endDate.year}-${anime.endDate.month}-${anime.endDate.day}`
+                  : 'Present'}
+              </li>
+              <li>
+                <strong>Season:</strong> {anime.season} {anime.seasonYear}
+              </li>
+              <li>
+                <strong>Studio:</strong> {anime.studios.nodes[0]?.name || 'Unknown'}
+              </li>
             </ul>
           </div>
           <div>
             <h3 className="text-2xl font-semibold mb-4 text-purple-400">Characters</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {anime.characters.nodes.slice(0, 6).map((character) => (
-                <Link href={`/character/${character.id}`} key={character.id} className="flex items-center space-x-2 hover:bg-gray-800 rounded-lg p-2 transition-colors">
+                <Link
+                  href={`/character/${character.id}`}
+                  key={character.id}
+                  className="flex items-center space-x-2 hover:bg-gray-800 rounded-lg p-2 transition-colors"
+                >
                   <img
                     src={character.image.medium}
                     alt={character.name.full}
@@ -133,14 +162,21 @@ function AnimeDetailContent({ anime }) {
         transition={{ delay: 0.5, duration: 0.5 }}
         className="fixed bottom-16 left-0 md:bottom-0 md:left-16 right-0 p-2 sm:p-4 bg-gray-900 bg-opacity-90 backdrop-blur-md z-50"
       >
-        <Link href={`/watch/${anime.id}`}>
+        {!isUpcoming ? (
+          <Link href={`/watch/${anime.id}`}>
+            <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center space-x-3">
+              <PlayCircle className="w-6 h-6 sm:w-8 sm:h-8" />
+              <span className="text-lg sm:text-xl">Watch Now</span>
+            </Button>
+          </Link>
+        ) : (
           <Button
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center space-x-3"
+            disabled
+            className="w-full bg-gray-600 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-lg shadow-lg cursor-not-allowed"
           >
-            <PlayCircle className="w-6 h-6 sm:w-8 sm:h-8" />
-            <span className="text-lg sm:text-xl">Watch Now</span>
+            Soon to be added
           </Button>
-        </Link>
+        )}
       </motion.div>
     </motion.div>
   );
@@ -162,7 +198,6 @@ export default function AnimeDetailPage() {
         setLoading(false);
       }
     }
-
     fetchAnimeDetails();
   }, [id]);
 
@@ -269,14 +304,13 @@ async function fetchAnimeData(animeId) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       body: JSON.stringify({
         query: query,
-        variables: { id: parseInt(animeId) }
-      })
+        variables: { id: parseInt(animeId, 10) },
+      }),
     });
-
     const data = await response.json();
     return data.data.Media;
   } catch (error) {

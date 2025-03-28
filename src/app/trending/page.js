@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TrendingUp, Calendar, Info } from "lucide-react"
+import Link from "next/link";
 
 // SWR fetcher that calls your internal trending API endpoint
 const fetcher = (url) => fetch(url).then((res) => res.json())
@@ -150,6 +151,7 @@ function AnimeCard({ anime, index }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.1 }}
     >
+      <Link href={`/anime/${anime.id}`} className="block">
       <Card className="overflow-hidden border-purple-800/50 bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all duration-300">
         <CardContent className="p-0">
           <div className="flex flex-col md:flex-row">
@@ -210,6 +212,7 @@ function AnimeCard({ anime, index }) {
           </div>
         </CardContent>
       </Card>
+      </Link>
     </motion.div>
   )
 }
