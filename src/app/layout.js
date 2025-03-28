@@ -21,10 +21,10 @@ export default function RootLayout({ children }) {
             <Sidebar />
             <main className="flex-1 overflow-y-auto px-3 bg-black md:pb-0">
               {children}
-              <div className="h-[calc(6rem+env(safe-area-inset-bottom))]" />
             </main>
           </div>
           <BottomNavigation />
+          <div className="h-[calc(6rem+env(safe-area-inset-bottom))]" />
         </div>
       </body>
     </html>
