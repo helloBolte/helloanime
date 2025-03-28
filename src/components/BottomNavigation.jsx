@@ -42,7 +42,7 @@ export default function BottomNavigation() {
                 <Button
                   variant={isActive ? "bottomnav" : "ghost"}
                   size="icon"
-                  className={`flex flex-col h-full w-16 items-center justify-center gap-0.5 p-0 transition-all ${
+                  className={`flex flex-col h-full w-16 items-center justify-center gap-0 p-0 transition-all ${
                     isActive ? "bg-purple-600" : "hover:bg-purple-600/30"
                   }`}
                 >
