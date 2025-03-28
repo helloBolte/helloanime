@@ -19,7 +19,7 @@ export default function RootLayout({ children }) {
           <Navbar />
           <div className="flex flex-1 overflow-hidden">
             <Sidebar />
-            <main className="flex-1 overflow-y-auto px-3 bg-black pb-20 md:pb-0">
+            <main className="flex-1 overflow-y-auto px-3 bg-black pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
               {children}
             </main>
           </div>

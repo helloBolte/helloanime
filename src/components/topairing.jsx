@@ -4,6 +4,7 @@ import useSWR from "swr"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tv, Calendar } from "lucide-react"
+import Link from "next/link"
 
 // SWR fetcher function that calls our topairing API endpoint
 const fetcher = (url) => fetch(url).then((res) => res.json())
@@ -17,6 +18,7 @@ export default function TopAiring() {
 
   return (
     <Card className="w-full bg-gray-900 text-white h-full flex flex-col">
+
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-purple-400">
           <Tv className="w-5 h-5" />
