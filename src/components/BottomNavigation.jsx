@@ -25,7 +25,7 @@ export default function BottomNavigation() {
           const isActive = pathname === item.href
 
           return (
-            <Link key={item.name} href={item.href} className="">
+            <Link key={item.name} href={item.href} className=" flex items-center justify-center">
               <motion.div
                 initial={false}
                 animate={
