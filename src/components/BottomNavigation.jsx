@@ -38,6 +38,7 @@ export default function BottomNavigation() {
                     : { y: 0, scale: 1, boxShadow: "none" }
                 }
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                className=" h-full"
               >
                 <Button
                   variant={isActive ? "bottomnav" : "ghost"}
