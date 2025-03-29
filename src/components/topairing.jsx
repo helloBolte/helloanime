@@ -18,7 +18,7 @@ export default function TopAiring() {
 
   return (
     <Card className="w-full bg-gray-900 text-white h-full flex flex-col">
-
+    
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-purple-400">
           <Tv className="w-5 h-5" />
@@ -42,8 +42,8 @@ export default function TopAiring() {
             : topAiringMedia.map((anime) => (
                 <div
                   key={anime.id}
-                  className="flex gap-3 hover:bg-gray-800 p-2 rounded-lg transition-colors cursor-pointer"
                 >
+                  <Link href={`/anime/${anime.id}`}  className="flex gap-3 hover:bg-gray-800 p-2 rounded-lg transition-colors cursor-pointer">
                   <img
                     src={anime.coverImage.large || "/placeholder.svg"}
                     alt={anime.title.userPreferred}
@@ -58,6 +58,7 @@ export default function TopAiring() {
                       <span>EP {anime.nextAiringEpisode?.episode - 1}</span>
                     </div>
                   </div>
+                  </Link>
                 </div>
               ))}
           {error && <p className="text-red-500">Error loading data.</p>}
