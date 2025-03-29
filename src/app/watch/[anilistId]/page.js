@@ -9,8 +9,9 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // --- Round Robin Helper for Pahe Endpoints ---
+// (Note: pahe and zoro are no longer used in provider selection)
 const paheEndpoints = ["/api/gpahe", "/api/gpahe2", "/api/gpahe3"];
-let paheEndpointIndex = 0; // module-level variable to persist across renders
+let paheEndpointIndex = 0;
 
 function getNextPaheEndpoint() {
   const endpoint = paheEndpoints[paheEndpointIndex];
@@ -120,22 +121,24 @@ export default function WatchPage() {
     }
   }, [anilistId, cookieKey]);
 
-  // Fetch providers from /api/gepisodes (filter out "zoro").
+  // Fetch providers from /api/gepisodes and filter to only use "strix" and "zaza".
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true);
         const res = await axios.get(`/api/gepisodes?id=${anilistId}`);
         const data = res.data;
-        // "pahe" is not filtered out now.
-        const filteredData = data.filter((p) => p.providerId !== "zoro");
+        // Only include providers "strix" and "zaza"
+        const filteredData = data.filter(
+          (p) => p.providerId === "strix" || p.providerId === "zaza"
+        );
         if (filteredData && filteredData.length > 0) {
           setProviders(filteredData);
           const savedProviderId = watchSettings?.provider;
-          const defaultProvider =
+          let defaultProvider =
             filteredData.find((p) => p.providerId === savedProviderId) ||
-            filteredData.find((p) => p.default) ||
-            filteredData[0];
+            filteredData.find((p) => p.providerId === "strix") ||
+            filteredData.find((p) => p.providerId === "zaza");
           setCurrentProvider(defaultProvider);
           setAudioTrack(watchSettings?.audio || "sub");
         }
@@ -174,17 +177,11 @@ export default function WatchPage() {
       if (!currentEpisode || !currentProvider) return;
       let watchId = "";
       let dub_id = "";
-      // For "pahe" and "zaza", use episode.id as watchId.
-      if (
-        currentProvider.providerId === "zaza" ||
-        currentProvider.providerId === "pahe"
-      ) {
+      // For "zaza", use episode.id as watchId and check for dub_id.
+      // For "strix", use episode.number.
+      if (currentProvider.providerId === "zaza") {
         watchId = currentEpisode.id;
-        // For zaza, use currentEpisode.dub_id if available; for pahe simply use "null".
-        dub_id =
-          currentProvider.providerId === "zaza"
-            ? currentEpisode.dub_id || "null"
-            : "null";
+        dub_id = currentEpisode.dub_id || "null";
       } else {
         watchId = currentEpisode.number;
         dub_id = "null";
@@ -200,9 +197,8 @@ export default function WatchPage() {
     fetchEpisodeDetails();
   }, [currentEpisode, audioTrack, currentProvider, anilistId]);
 
-  // Initialize ArtPlayer with fixed dimensions, using HLS and route API for pahe, zaza, etc.
+  // Initialize ArtPlayer and ensure the previous instance is destroyed instantly.
   useEffect(() => {
-    // Ensure container is available.
     if (!playerContainerRef.current) return;
 
     // Immediately destroy any existing player.
@@ -211,7 +207,6 @@ export default function WatchPage() {
       artPlayerRef.current = null;
     }
 
-    // Do not initialize if no valid episode details.
     if (
       !currentEpisode ||
       !episodeDetails ||
@@ -229,7 +224,6 @@ export default function WatchPage() {
       cover: getImageUrl(currentEpisode.image),
       autoSize: false,
       width: "100%",
-      // Responsive height: 200px on small, 300px on sm, 400px on md+
       height: "200px sm:h-[300px] md:h-[400px]",
       volume: 0.5,
       fullscreen: true,
@@ -240,54 +234,11 @@ export default function WatchPage() {
       setting: true,
       theme: "#c026d3",
       crossOrigin: "anonymous",
-      // Enable autoplay on initial load
       autoplay: true,
       plugins: [],
     };
 
-    // ----- PAHE Branch: Ensure m3u8 (and key) are playable -----
-    if (currentProvider?.providerId === "pahe") {
-      const chosenEndpoint = getNextPaheEndpoint();
-      let sourceUrl = episodeDetails.sources[0].url;
-      if (!paheEndpoints.some((ep) => sourceUrl.startsWith(ep))) {
-        rawVideoUrl = `${chosenEndpoint}?url=${encodeURIComponent(sourceUrl)}`;
-      } else {
-        rawVideoUrl = sourceUrl;
-      }
-      artConfig.type = "m3u8";
-      artConfig.customType = {
-        m3u8: (video, url) => {
-          class CustomLoader extends Hls.DefaultConfig.loader {
-            load(context, config, callbacks) {
-              if (!paheEndpoints.some((ep) => context.url.startsWith(ep))) {
-                context.url = `${chosenEndpoint}?url=${encodeURIComponent(context.url)}`;
-              }
-              super.load(context, config, callbacks);
-            }
-            abort() {
-              console.log("Pahe: abort called but ignored.");
-            }
-          }
-          const hls = new Hls({
-            loader: CustomLoader,
-          });
-          hls.loadSource(url);
-          hls.attachMedia(video);
-          hls.on(Hls.Events.ERROR, (event, data) => {
-            console.error("HLS error:", event, data);
-          });
-          return hls;
-        },
-      };
-      if (episodeDetails.skips) {
-        artConfig.plugins.push((art) => {
-          art.on("loadedmetadata", () => {
-            addIntroOutroMarkers(art, episodeDetails.skips);
-          });
-          return () => {};
-        });
-      }
-    } else if (currentProvider?.providerId === "zaza") {
+    if (currentProvider?.providerId === "zaza") {
       rawVideoUrl = `/api/gzaza?url=${encodeURIComponent(episodeDetails.sources[0].url)}`;
       artConfig.type = "m3u8";
       artConfig.customType = {
@@ -341,6 +292,7 @@ export default function WatchPage() {
       console.error("ArtPlayer error:", error);
     });
 
+    // Cleanup: destroy player on unmount or dependency change.
     return () => {
       if (artPlayerRef.current) {
         artPlayerRef.current.destroy();
@@ -379,6 +331,7 @@ export default function WatchPage() {
   const handleEpisodeSelect = (episode) => {
     setCurrentEpisode(episode);
   };
+  // When selecting a provider, also reset the audio track to "sub".
   const handleProviderSelect = (provider) => {
     setCurrentProvider(provider);
     setAudioTrack("sub");
@@ -443,7 +396,7 @@ export default function WatchPage() {
             )}
           </div>
           <div className="mb-2">
-            <span className="font-bold text-gray-300 mr-2">Providers:</span>
+            <span className="font-bold text-gray-300 mr-2">Servers:</span>
             {providers.map((provider) => (
               <button
                 key={provider.providerId}
@@ -454,12 +407,12 @@ export default function WatchPage() {
                     : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
                 }`}
               >
-                {provider.providerId}
+                {provider.providerId === "strix" ? "Server 1" : "Server 2"}
               </button>
             ))}
           </div>
           <div className="text-sm text-gray-400 mt-2">
-            If the current provider or track doesn’t work, please try switching.
+            If the current server or track doesn’t work, please try switching.
           </div>
         </div>
       </div>
