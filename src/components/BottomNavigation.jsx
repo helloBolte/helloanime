@@ -11,8 +11,8 @@ const navItems = [
   { name: "Trending", icon: Flame, href: "/trending" },
   { name: "Schedule", icon: Calendar, href: "/schedule" },
   { name: "History", icon: History, href: "/history" },
-  { name: "Profile", icon: User, href: "/profile" },
-  { name: "Settings", icon: Settings, href: "/settings" },
+  // { name: "Profile", icon: User, href: "/profile" },
+  // { name: "Settings", icon: Settings, href: "/settings" },
 ]
 
 export default function BottomNavigation() {

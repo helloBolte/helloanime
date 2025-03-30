@@ -9,10 +9,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // --- Round Robin Helper for Pahe Endpoints ---
-// (Note: pahe and zoro are no longer used in provider selection)
 const paheEndpoints = ["/api/gpahe", "/api/gpahe2", "/api/gpahe3"];
 let paheEndpointIndex = 0;
-
 function getNextPaheEndpoint() {
   const endpoint = paheEndpoints[paheEndpointIndex];
   paheEndpointIndex = (paheEndpointIndex + 1) % paheEndpoints.length;
@@ -50,10 +48,8 @@ function addIntroOutroMarkers(art, skipData) {
   const duration = art.video.duration;
   const timeline = art.container.querySelector(".artplayer-timeline");
   if (!timeline || !duration) return;
-
   // Clear any existing markers.
   timeline.querySelectorAll(".skip-marker").forEach((el) => el.remove());
-
   // Intro marker.
   if (skipData.op && skipData.op.startTime > 0) {
     const introMarker = document.createElement("div");
@@ -66,7 +62,6 @@ function addIntroOutroMarkers(art, skipData) {
     introMarker.style.backgroundColor = "rgba(255,255,0,0.3)";
     timeline.appendChild(introMarker);
   }
-
   // Outro marker.
   if (skipData.ed && skipData.ed.endTime < duration) {
     const outroMarker = document.createElement("div");
@@ -85,6 +80,9 @@ function addIntroOutroMarkers(art, skipData) {
 export default function WatchPage() {
   const { anilistId } = useParams();
   const cookieKey = `watchSettings_${anilistId}`;
+
+  // State for AniList anime name.
+  const [animeName, setAnimeName] = useState("");
 
   // Watch settings.
   const [watchSettings, setWatchSettings] = useState(null);
@@ -107,6 +105,35 @@ export default function WatchPage() {
   const playerContainerRef = useRef(null);
   const artPlayerRef = useRef(null);
 
+  // Fetch anime name from AniList using the provided anilistId.
+  useEffect(() => {
+    if (!anilistId) return;
+    axios
+      .post("https://graphql.anilist.co", {
+        query: `
+          query ($id: Int) {
+            Media(id: $id, type: ANIME) {
+              title {
+                romaji
+                english
+                native
+              }
+            }
+          }
+        `,
+        variables: { id: parseInt(anilistId, 10) },
+      })
+      .then((res) => {
+        const media = res.data.data.Media;
+        const title =
+          media.title.romaji || media.title.english || media.title.native;
+        setAnimeName(title);
+      })
+      .catch((err) => {
+        console.error("Error fetching anime info from AniList:", err);
+      });
+  }, [anilistId]);
+
   // Read cookie on initial load.
   useEffect(() => {
     if (!anilistId) return;
@@ -128,14 +155,13 @@ export default function WatchPage() {
         setLoading(true);
         const res = await axios.get(`/api/gepisodes?id=${anilistId}`);
         const data = res.data;
-        // Only include providers "strix" and "zaza"
         const filteredData = data.filter(
           (p) => p.providerId === "strix" || p.providerId === "zaza"
         );
         if (filteredData && filteredData.length > 0) {
           setProviders(filteredData);
           const savedProviderId = watchSettings?.provider;
-          let defaultProvider =
+          const defaultProvider =
             filteredData.find((p) => p.providerId === savedProviderId) ||
             filteredData.find((p) => p.providerId === "strix") ||
             filteredData.find((p) => p.providerId === "zaza");
@@ -177,8 +203,6 @@ export default function WatchPage() {
       if (!currentEpisode || !currentProvider) return;
       let watchId = "";
       let dub_id = "";
-      // For "zaza", use episode.id as watchId and check for dub_id.
-      // For "strix", use episode.number.
       if (currentProvider.providerId === "zaza") {
         watchId = currentEpisode.id;
         dub_id = currentEpisode.dub_id || "null";
@@ -197,16 +221,13 @@ export default function WatchPage() {
     fetchEpisodeDetails();
   }, [currentEpisode, audioTrack, currentProvider, anilistId]);
 
-  // Initialize ArtPlayer and ensure the previous instance is destroyed instantly.
+  // Initialize ArtPlayer.
   useEffect(() => {
     if (!playerContainerRef.current) return;
-
-    // Immediately destroy any existing player.
     if (artPlayerRef.current) {
       artPlayerRef.current.destroy();
       artPlayerRef.current = null;
     }
-
     if (
       !currentEpisode ||
       !episodeDetails ||
@@ -216,7 +237,6 @@ export default function WatchPage() {
     ) {
       return;
     }
-
     let rawVideoUrl = "";
     const artConfig = {
       container: playerContainerRef.current,
@@ -237,7 +257,6 @@ export default function WatchPage() {
       autoplay: true,
       plugins: [],
     };
-
     if (currentProvider?.providerId === "zaza") {
       rawVideoUrl = `/api/gzaza?url=${encodeURIComponent(episodeDetails.sources[0].url)}`;
       artConfig.type = "m3u8";
@@ -251,9 +270,7 @@ export default function WatchPage() {
               super.load(context, config, callbacks);
             }
           }
-          const hls = new Hls({
-            loader: CustomLoader,
-          });
+          const hls = new Hls({ loader: CustomLoader });
           hls.loadSource(url);
           hls.attachMedia(video);
           return hls;
@@ -280,19 +297,15 @@ export default function WatchPage() {
     } else {
       rawVideoUrl = episodeDetails.sources[0].url;
     }
-
     artConfig.url = rawVideoUrl;
     const art = new ArtPlayer(artConfig);
     artPlayerRef.current = art;
-
     art.on("loadedmetadata", () => {
       console.log("ArtPlayer loaded metadata");
     });
     art.on("error", (error) => {
       console.error("ArtPlayer error:", error);
     });
-
-    // Cleanup: destroy player on unmount or dependency change.
     return () => {
       if (artPlayerRef.current) {
         artPlayerRef.current.destroy();
@@ -312,9 +325,7 @@ export default function WatchPage() {
     setCookie(cookieKey, encodeURIComponent(JSON.stringify(settings)));
   }, [currentProvider, currentEpisode, audioTrack, cookieKey]);
 
-  const isEpisodeUnavailable =
-    episodeDetails && Object.keys(episodeDetails).length === 0;
-
+  const isEpisodeUnavailable = episodeDetails && Object.keys(episodeDetails).length === 0;
   const filteredEpisodes = episodes.filter((ep) => {
     const query = searchQuery.toLowerCase();
     return (
@@ -323,15 +334,9 @@ export default function WatchPage() {
     );
   });
   const startIndex = (currentPage - 1) * episodesPerPage;
-  const paginatedEpisodes = filteredEpisodes.slice(
-    startIndex,
-    startIndex + episodesPerPage
-  );
+  const paginatedEpisodes = filteredEpisodes.slice(startIndex, startIndex + episodesPerPage);
 
-  const handleEpisodeSelect = (episode) => {
-    setCurrentEpisode(episode);
-  };
-  // When selecting a provider, also reset the audio track to "sub".
+  const handleEpisodeSelect = (episode) => setCurrentEpisode(episode);
   const handleProviderSelect = (provider) => {
     setCurrentProvider(provider);
     setAudioTrack("sub");
@@ -344,17 +349,16 @@ export default function WatchPage() {
     <div className="min-h-screen bg-[#121212] text-white flex flex-col md:flex-row">
       {/* MAIN CONTENT (Video player and details) */}
       <div className="order-1 md:order-2 flex-1 flex flex-col">
+        {/* Anime name shown as a header above the video player */}
         <div className="p-4">
+          <h1 className="text-3xl font-bold mb-4">{animeName || "Anime Title"}</h1>
           {currentEpisode ? (
             isEpisodeUnavailable ? (
               <div className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
                 {`${audioTrack.toUpperCase()} track is not available for this provider. Please change the server.`}
               </div>
             ) : (
-              <div
-                ref={playerContainerRef}
-                className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] rounded overflow-hidden"
-              />
+              <div ref={playerContainerRef} className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] rounded overflow-hidden" />
             )
           ) : (
             <div className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
@@ -366,7 +370,14 @@ export default function WatchPage() {
           {currentEpisode && (
             <div className="mb-3">
               <div className="font-bold text-purple-400">You are Watching</div>
-              <div className="text-lg font-semibold">Episode {currentEpisode.number}</div>
+              <div className="text-lg font-semibold">
+                Episode {currentEpisode.number}: {currentEpisode.title}
+              </div>
+              {currentEpisode.isFiller && (
+                <span className="inline-block mt-1 px-2 py-1 text-xs text-white bg-red-600 rounded">
+                  Filler Episode
+                </span>
+              )}
             </div>
           )}
           <div className="mb-4">
@@ -416,7 +427,7 @@ export default function WatchPage() {
           </div>
         </div>
       </div>
-      {/* EPISODE SELECTOR (Sidebar) - Shown last on mobile */}
+      {/* EPISODE SELECTOR (Sidebar) */}
       <div className="order-3 md:order-1 w-full md:w-[350px] border-t md:border-t-0 md:border-r border-gray-800 flex flex-col">
         <div className="p-4 border-b md:border-b-0">
           <h2 className="text-xl font-bold mb-2">Up Next</h2>
@@ -431,10 +442,7 @@ export default function WatchPage() {
             }}
           />
         </div>
-        <div
-          className="p-4 space-y-2 overflow-y-auto"
-          style={{ maxHeight: "400px" }}
-        >
+        <div className="p-4 space-y-2 overflow-y-auto" style={{ maxHeight: "400px" }}>
           {loading ? (
             <Skeleton className="h-8 w-full" />
           ) : paginatedEpisodes.length > 0 ? (
@@ -443,9 +451,7 @@ export default function WatchPage() {
                 key={ep.id}
                 onClick={() => handleEpisodeSelect(ep)}
                 className={`flex items-center p-2 rounded transition-colors w-full text-left ${
-                  currentEpisode?.id === ep.id
-                    ? "bg-purple-700"
-                    : "bg-[#1f1f1f] hover:bg-[#2a2a2a]"
+                  currentEpisode?.id === ep.id ? "bg-purple-700" : "bg-[#1f1f1f] hover:bg-[#2a2a2a]"
                 }`}
               >
                 {ep.image && (

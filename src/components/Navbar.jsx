@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useDebounce } from 'use-debounce';
-import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { Menu, Search, X } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import Logo from '@/components/logo';
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useDebounce } from "use-debounce";
+import Link from "next/link";
+import { Search, X } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import Logo from "@/components/logo";
+import AuthModal from "@/components/AuthModal"; // Import the modal
 
 const ANILIST_API = 'https://graphql.anilist.co';
 
@@ -81,11 +81,13 @@ export default function Navbar() {
                 isLoading={isLoading}
               />
             </div>
-            {/* Desktop Login */}
-            <Button variant="secondary" className="hidden sm:block bg-purple-600 text-white hover:bg-purple-700">
-              Login
-            </Button>
-            {/* Mobile Menu Toggle */}
+            {/* Desktop Login using AuthModal */}
+           { 
+            /*<div className="hidden sm:block">
+              <AuthModal />
+            </div>*/
+            }
+            {/* Mobile Menu Toggle and Login */}
             <div className="flex items-center sm:hidden">
               <Button
                 variant="ghost"
@@ -95,9 +97,7 @@ export default function Navbar() {
               >
                 {isMenuOpen ? <X size={24} /> : <Search size={24} />}
               </Button>
-              <Button variant="secondary" className="bg-purple-600 text-white hover:bg-purple-700">
-                Login
-              </Button>
+             {/*  <AuthModal /> */}
             </div>
           </div>
         </div>
@@ -150,36 +150,34 @@ function SearchForm({
           ref={suggestionRef}
           className="absolute z-40 w-full mt-1 bg-gray-800 border border-purple-600 rounded-md shadow-lg max-h-60 overflow-y-auto"
         >
-          {isLoading ? (
-            [...Array(3)].map((_, index) => (
-              <div key={index} className="flex items-center p-2">
-                <Skeleton className="w-10 h-14 mr-2" />
-                <div className="flex-1">
-                  <Skeleton className="h-4 w-3/4 mb-1" />
-                  <Skeleton className="h-3 w-1/2" />
+          {isLoading
+            ? [...Array(3)].map((_, index) => (
+                <div key={index} className="flex items-center p-2">
+                  <Skeleton className="w-10 h-14 mr-2" />
+                  <div className="flex-1">
+                    <Skeleton className="h-4 w-3/4 mb-1" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
                 </div>
-              </div>
-            ))
-          ) : (
-            suggestions.map((suggestion) => (
-              <button
-                key={suggestion.id}
-                className="w-full text-left flex items-center p-2 hover:bg-gray-700 cursor-pointer text-white"
-                onClick={() => handleSuggestionClick(suggestion)}
-              >
-                <img
-                  src={suggestion.coverImage.medium || '/placeholder.svg'}
-                  alt={suggestion.title.romaji}
-                  className="w-10 h-14 object-cover mr-2"
-                />
-                <div className="flex-1">
-                  <span className="line-clamp-1">
-                    {suggestion?.title?.english || suggestion?.title?.romaji}
-                  </span>
-                </div>
-              </button>
-            ))
-          )}
+              ))
+            : suggestions.map((suggestion) => (
+                <button
+                  key={suggestion.id}
+                  className="w-full text-left flex items-center p-2 hover:bg-gray-700 cursor-pointer text-white"
+                  onClick={() => handleSuggestionClick(suggestion)}
+                >
+                  <img
+                    src={suggestion.coverImage.medium || '/placeholder.svg'}
+                    alt={suggestion.title.romaji}
+                    className="w-10 h-14 object-cover mr-2"
+                  />
+                  <div className="flex-1">
+                    <span className="line-clamp-1">
+                      {suggestion?.title?.english || suggestion?.title?.romaji}
+                    </span>
+                  </div>
+                </button>
+              ))}
         </div>
       )}
     </div>
