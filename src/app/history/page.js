@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 export default function HistoryPage() {
   const [history, setHistory] = useState([]);
@@ -13,14 +14,16 @@ export default function HistoryPage() {
       const historyCookies = cookies.filter((cookie) =>
         cookie.startsWith("watchSettings_")
       );
-      // Parse each cookie's value
+      // Parse each cookie's value and include the anilistId extracted from the key
       const historyData = historyCookies
         .map((cookie) => {
           const [key, value] = cookie.split("=");
           try {
             const decoded = decodeURIComponent(value);
             const parsed = JSON.parse(decoded);
-            return { key, ...parsed };
+            // Extract anilistId from key e.g. "watchSettings_21856"
+            const anilistId = key.replace("watchSettings_", "");
+            return { key, anilistId, ...parsed };
           } catch (error) {
             console.error("Error parsing cookie", cookie, error);
             return null;
@@ -39,32 +42,31 @@ export default function HistoryPage() {
       ) : (
         <ul className="space-y-4">
           {history.map((item) => (
-            <li
-              key={item.key}
-              className="flex items-center bg-gray-800 p-4 rounded shadow"
-            >
-              {item.thumbnail && (
-                <img
-                  src={item.thumbnail}
-                  alt="Thumbnail"
-                  className="w-24 h-24 object-cover rounded mr-4"
-                />
-              )}
-              <div>
-                <p>
-                  <span className="font-semibold">Provider:</span> {item.provider}
-                </p>
-                <p>
-                  <span className="font-semibold">Episode:</span> {item.episode}
-                </p>
-                <p>
-                  <span className="font-semibold">Audio:</span> {item.audio}
-                </p>
-                <p>
-                  <span className="font-semibold">Last Watched:</span>{" "}
-                  {Math.floor(item.currentTime)} seconds
-                </p>
-              </div>
+            <li key={item.key} className="bg-gray-800 p-4 rounded shadow">
+              <Link href={`/watch/${item.anilistId}`} className="flex items-center space-x-4">
+                {item.thumbnail && (
+                  <img
+                    src={item.thumbnail}
+                    alt="Thumbnail"
+                    className="w-24 h-24 object-cover rounded"
+                  />
+                )}
+                <div>
+                  <p>
+                    <span className="font-semibold">Provider:</span> {item.provider}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Episode:</span> {item.episode}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Audio:</span> {item.audio}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Last Watched:</span>{" "}
+                    {Math.floor(item.currentTime)} seconds
+                  </p>
+                </div>
+              </Link>
             </li>
           ))}
         </ul>

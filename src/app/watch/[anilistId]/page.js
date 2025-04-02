@@ -81,16 +81,31 @@ export default function WatchPage() {
   const { anilistId } = useParams();
   const cookieKey = `watchSettings_${anilistId}`;
 
+  // Read cookie synchronously during initialization.
+  const initialWatchSettings = (() => {
+    if (typeof document !== "undefined") {
+      const cookieVal = getCookie(cookieKey);
+      if (cookieVal) {
+        try {
+          return JSON.parse(decodeURIComponent(cookieVal));
+        } catch (error) {
+          console.error("Error parsing watchSettings cookie:", error);
+        }
+      }
+    }
+    return {};
+  })();
+
   // State for AniList anime name.
   const [animeName, setAnimeName] = useState("");
 
-  // Watch settings.
-  const [watchSettings, setWatchSettings] = useState(null);
+  // Watch settings and audio track (initialized from cookie if available).
+  const [watchSettings, setWatchSettings] = useState(initialWatchSettings);
+  const [audioTrack, setAudioTrack] = useState(initialWatchSettings?.audio || "sub");
 
   // Providers, episodes and current selections.
   const [providers, setProviders] = useState([]);
   const [currentProvider, setCurrentProvider] = useState(null);
-  const [audioTrack, setAudioTrack] = useState("sub");
   const [episodes, setEpisodes] = useState([]);
   const [currentEpisode, setCurrentEpisode] = useState(null);
   const [episodeDetails, setEpisodeDetails] = useState(null);
@@ -134,7 +149,7 @@ export default function WatchPage() {
       });
   }, [anilistId]);
 
-  // Read cookie on initial load.
+  // Read cookie on initial load (in case it changes).
   useEffect(() => {
     if (!anilistId) return;
     const cookieVal = getCookie(cookieKey);
@@ -166,6 +181,7 @@ export default function WatchPage() {
             filteredData.find((p) => p.providerId === "strix") ||
             filteredData.find((p) => p.providerId === "zaza");
           setCurrentProvider(defaultProvider);
+          // When a cookie exists, set the audioTrack state accordingly.
           setAudioTrack(watchSettings?.audio || "sub");
         }
       } catch (error) {
@@ -220,6 +236,14 @@ export default function WatchPage() {
     }
     fetchEpisodeDetails();
   }, [currentEpisode, audioTrack, currentProvider, anilistId]);
+
+  // Immediately destroy the current player when audio track changes.
+  useEffect(() => {
+    if (artPlayerRef.current) {
+      artPlayerRef.current.destroy();
+      artPlayerRef.current = null;
+    }
+  }, [audioTrack]);
 
   // Initialize ArtPlayer.
   useEffect(() => {
@@ -325,7 +349,8 @@ export default function WatchPage() {
     setCookie(cookieKey, encodeURIComponent(JSON.stringify(settings)));
   }, [currentProvider, currentEpisode, audioTrack, cookieKey]);
 
-  const isEpisodeUnavailable = episodeDetails && Object.keys(episodeDetails).length === 0;
+  const isEpisodeUnavailable =
+    episodeDetails && Object.keys(episodeDetails).length === 0;
   const filteredEpisodes = episodes.filter((ep) => {
     const query = searchQuery.toLowerCase();
     return (
@@ -334,7 +359,10 @@ export default function WatchPage() {
     );
   });
   const startIndex = (currentPage - 1) * episodesPerPage;
-  const paginatedEpisodes = filteredEpisodes.slice(startIndex, startIndex + episodesPerPage);
+  const paginatedEpisodes = filteredEpisodes.slice(
+    startIndex,
+    startIndex + episodesPerPage
+  );
 
   const handleEpisodeSelect = (episode) => setCurrentEpisode(episode);
   const handleProviderSelect = (provider) => {
@@ -351,14 +379,19 @@ export default function WatchPage() {
       <div className="order-1 md:order-2 flex-1 flex flex-col">
         {/* Anime name shown as a header above the video player */}
         <div className="p-4">
-          <h1 className="text-3xl font-bold mb-4">{animeName || "Anime Title"}</h1>
+          <h1 className="text-3xl font-bold mb-4">
+            {animeName || "Anime Title"}
+          </h1>
           {currentEpisode ? (
             isEpisodeUnavailable ? (
               <div className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
                 {`${audioTrack.toUpperCase()} track is not available for this provider. Please change the server.`}
               </div>
             ) : (
-              <div ref={playerContainerRef} className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] rounded overflow-hidden" />
+              <div
+                ref={playerContainerRef}
+                className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] rounded overflow-hidden"
+              />
             )
           ) : (
             <div className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
@@ -385,7 +418,9 @@ export default function WatchPage() {
             <button
               onClick={() => setAudioTrack("sub")}
               className={`inline-block px-3 py-1 rounded mr-2 mb-2 transition-colors ${
-                audioTrack === "sub" ? "bg-purple-600" : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
+                audioTrack === "sub"
+                  ? "bg-purple-600"
+                  : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
               }`}
             >
               SUB
@@ -394,7 +429,9 @@ export default function WatchPage() {
               <button
                 onClick={() => setAudioTrack("dub")}
                 className={`inline-block px-3 py-1 rounded mr-2 mb-2 transition-colors ${
-                  audioTrack === "dub" ? "bg-purple-600" : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
+                  audioTrack === "dub"
+                    ? "bg-purple-600"
+                    : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
                 }`}
               >
                 DUB
@@ -442,7 +479,10 @@ export default function WatchPage() {
             }}
           />
         </div>
-        <div className="p-4 space-y-2 overflow-y-auto" style={{ maxHeight: "400px" }}>
+        <div
+          className="p-4 space-y-2 overflow-y-auto"
+          style={{ maxHeight: "400px" }}
+        >
           {loading ? (
             <Skeleton className="h-8 w-full" />
           ) : paginatedEpisodes.length > 0 ? (
@@ -451,7 +491,9 @@ export default function WatchPage() {
                 key={ep.id}
                 onClick={() => handleEpisodeSelect(ep)}
                 className={`flex items-center p-2 rounded transition-colors w-full text-left ${
-                  currentEpisode?.id === ep.id ? "bg-purple-700" : "bg-[#1f1f1f] hover:bg-[#2a2a2a]"
+                  currentEpisode?.id === ep.id
+                    ? "bg-purple-700"
+                    : "bg-[#1f1f1f] hover:bg-[#2a2a2a]"
                 }`}
               >
                 {ep.image && (
