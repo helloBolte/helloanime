@@ -27,7 +27,7 @@ const getImageUrl = (url) => {
   return url;
 };
 
-// Simple cookie helpers.
+// Enhanced cookie helpers
 function getCookie(name) {
   if (typeof document === "undefined") return null;
   const value = `; ${document.cookie}`;
@@ -35,10 +35,11 @@ function getCookie(name) {
   if (parts.length === 2) return parts.pop().split(";").shift();
   return null;
 }
+
 function setCookie(name, value, days = 365) {
   if (typeof document === "undefined") return;
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = `${name}=${value}; expires=${expires}; path=/`;
+  document.cookie = `${name}=${encodeURIComponent(JSON.stringify(value))}; expires=${expires}; path=/`;
 }
 
 /**
@@ -93,11 +94,14 @@ export default function WatchPage() {
         }
       }
     }
-    return {};
+    return {
+      thumbnailUrl: "",
+      animeTitle: ""
+    };
   })();
 
-  // State for AniList anime name.
-  const [animeName, setAnimeName] = useState("");
+  // State for anime name (initialize from cookie if available)
+  const [animeName, setAnimeName] = useState(initialWatchSettings.animeTitle || "");
 
   // Watch settings and audio track (initialized from cookie if available).
   const [watchSettings, setWatchSettings] = useState(initialWatchSettings);
@@ -120,9 +124,10 @@ export default function WatchPage() {
   const playerContainerRef = useRef(null);
   const artPlayerRef = useRef(null);
 
-  // Fetch anime name from AniList using the provided anilistId.
+  // Fetch anime name from AniList only if not in cookie
   useEffect(() => {
-    if (!anilistId) return;
+    if (!anilistId || initialWatchSettings.animeTitle) return;
+    
     axios
       .post("https://graphql.anilist.co", {
         query: `
@@ -147,7 +152,7 @@ export default function WatchPage() {
       .catch((err) => {
         console.error("Error fetching anime info from AniList:", err);
       });
-  }, [anilistId]);
+  }, [anilistId, initialWatchSettings.animeTitle]);
 
   // Read cookie on initial load (in case it changes).
   useEffect(() => {
@@ -157,6 +162,9 @@ export default function WatchPage() {
       try {
         const settings = JSON.parse(decodeURIComponent(cookieVal));
         setWatchSettings(settings);
+        if (settings.animeTitle) {
+          setAnimeName(settings.animeTitle);
+        }
       } catch (error) {
         console.error("Error parsing watchSettings cookie:", error);
       }
@@ -181,7 +189,6 @@ export default function WatchPage() {
             filteredData.find((p) => p.providerId === "strix") ||
             filteredData.find((p) => p.providerId === "zaza");
           setCurrentProvider(defaultProvider);
-          // When a cookie exists, set the audioTrack state accordingly.
           setAudioTrack(watchSettings?.audio || "sub");
         }
       } catch (error) {
@@ -197,17 +204,22 @@ export default function WatchPage() {
   useEffect(() => {
     if (!currentProvider) return;
     let filtered = [...(currentProvider.episodes || [])];
+    
     if (audioTrack === "dub") {
       filtered = filtered.filter((ep) => ep.hasDub === true);
     }
+
     setEpisodes(filtered);
     setCurrentPage(1);
+
     if (filtered.length > 0) {
-      const savedEpisodeNumber = watchSettings?.episode;
-      const ep1 =
-        filtered.find((ep) => ep.number === savedEpisodeNumber) ||
-        filtered.find((ep) => ep.number === 1);
-      setCurrentEpisode(ep1 ? ep1 : filtered[0]);
+      // Try to maintain current episode number
+      const currentEpNumber = currentEpisode?.number;
+      const targetEpisode = filtered.find(ep => ep.number === currentEpNumber) || 
+                           filtered.find(ep => ep.number === watchSettings?.episode) || 
+                           filtered[0];
+      
+      setCurrentEpisode(targetEpisode);
     } else {
       setCurrentEpisode(null);
     }
@@ -345,9 +357,11 @@ export default function WatchPage() {
       provider: currentProvider.providerId,
       episode: currentEpisode.number,
       audio: audioTrack,
+      thumbnailUrl: currentEpisode.image,
+      animeTitle: animeName
     };
-    setCookie(cookieKey, encodeURIComponent(JSON.stringify(settings)));
-  }, [currentProvider, currentEpisode, audioTrack, cookieKey]);
+    setCookie(cookieKey, settings);
+  }, [currentProvider, currentEpisode, audioTrack, cookieKey, animeName]);
 
   const isEpisodeUnavailable =
     episodeDetails && Object.keys(episodeDetails).length === 0;
@@ -460,7 +474,7 @@ export default function WatchPage() {
             ))}
           </div>
           <div className="text-sm text-gray-400 mt-2">
-            If the current server or track doesn’t work, please try switching.
+            If the current server or track doesn't work, please try switching.
           </div>
         </div>
       </div>

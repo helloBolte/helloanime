@@ -1,20 +1,23 @@
-import { Inter } from "next/font/google"
-import "./globals.css"
-import Navbar from "@/components/Navbar"
-import Sidebar from "@/components/Sidebar"
-import BottomNavigation from "@/components/BottomNavigation"
+import { Inter } from "next/font/google";
+import "./globals.css";
+import Navbar from "@/components/Navbar";
+import Sidebar from "@/components/Sidebar";
+import BottomNavigation from "@/components/BottomNavigation";
+import DevToolsDetector from "@/components/AnimeGetter";
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
   title: "AnimeZone",
   description: "A modern anime streaming platform for kids and teens",
-}
+};
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={inter.className + " overflow-hidden"}>
+        {/* DevToolsDetector runs on the client to monitor for devtools or bot activity */}
+        <DevToolsDetector />
         <div className="flex flex-col h-svh overflow-hidden">
           <Navbar />
           <div className="flex flex-1 overflow-hidden">
@@ -27,5 +30,5 @@ export default function RootLayout({ children }) {
         </div>
       </body>
     </html>
-  )
+  );
 }

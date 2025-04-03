@@ -164,33 +164,56 @@ function AnimeCard({ anime, index }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
-      whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+      whileHover={{ scale: 1.03, transition: { duration: 0.2 } }}
+      className="h-full"
     >
-      <Card className="border-purple-800/30 bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all duration-300 overflow-hidden">
-        <CardContent className="p-0">
-          <div className="flex items-start p-3">
-            <div className="relative flex-shrink-0 w-16 h-20 sm:w-20 sm:h-24 rounded-md overflow-hidden">
-              <Image
-                src={anime.coverImage || "/placeholder.svg?height=96&width=80"}
-                alt={anime.title.english || anime.title.romaji}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 64px, 80px"
-              />
-              <div className="absolute bottom-0 right-0 bg-purple-800 text-white text-xs font-bold px-1.5 py-0.5 rounded-tl-md">
-                EP {anime.airingEpisode}
+      <Card className="border-purple-800/30 bg-gradient-to-br from-black/80 to-purple-950/40 backdrop-blur-sm hover:bg-black/60 transition-all duration-300 overflow-hidden h-full shadow-lg shadow-purple-900/20 hover:shadow-purple-700/30">
+        <CardContent className="p-0 h-full">
+          <div className="relative h-full">
+            {/* Decorative elements */}
+            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-600/10 rounded-full -mr-12 -mt-12 blur-2xl pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-16 h-16 bg-purple-500/10 rounded-full -ml-8 -mb-8 blur-xl pointer-events-none"></div>
+
+            <div className="flex flex-col sm:flex-row items-start p-4 h-full">
+              <div className="relative flex-shrink-0 w-full sm:w-24 h-32 sm:h-32 rounded-lg overflow-hidden mb-3 sm:mb-0 group">
+                <Image
+                  src={anime.coverImage || "/placeholder.svg?height=128&width=96"}
+                  alt={anime.title.english || anime.title.romaji}
+                  fill
+                  className="object-cover transition-transform duration-500 group-hover:scale-110"
+                  sizes="(max-width: 768px) 100%, 96px"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-60"></div>
+                <div className="absolute bottom-0 right-0 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-tl-md">
+                  EP {anime.airingEpisode}
+                </div>
               </div>
-            </div>
 
-            <div className="ml-3 flex-1 overflow-hidden">
-              <h3 className="font-bold text-sm sm:text-base text-purple-200 line-clamp-2">
-                {anime.title.english || anime.title.romaji}
-              </h3>
+              <div className="sm:ml-4 flex-1 overflow-hidden flex flex-col justify-between h-full">
+                <div>
+                  <h3 className="font-bold text-base sm:text-lg text-white line-clamp-2 leading-tight">
+                    {anime.title.english || anime.title.romaji}
+                  </h3>
 
-              <div className="mt-1 flex flex-wrap gap-2">
-                <span className="text-xs text-white bg-purple-900/70 px-2 py-0.5 rounded-full">
-                  Episode {anime.airingEpisode}
-                </span>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className="text-xs font-medium text-white bg-purple-700 px-2.5 py-1 rounded-full inline-flex items-center">
+                      <span className="w-1.5 h-1.5 bg-purple-300 rounded-full mr-1.5 animate-pulse"></span>
+                      Episode {anime.airingEpisode}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-2 pt-2 border-t border-purple-800/30 text-xs text-purple-300/80 flex items-center">
+                  <Clock className="h-3 w-3 mr-1" />
+                  <span>
+                    {new Date(anime.airingAt).toLocaleTimeString("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                      timeZone: "UTC",
+                    })}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -205,19 +228,23 @@ function ScheduleSkeleton() {
     <div className="space-y-8">
       {[1, 2].map((timeBlock) => (
         <div key={timeBlock} className="mb-6">
-          <Skeleton className="h-7 w-32 mb-3" />
+          <Skeleton className="h-7 w-32 mb-3 bg-purple-800/30" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {Array(4)
               .fill(0)
               .map((_, idx) => (
-                <Card key={idx} className="border-purple-800/30 bg-black/40 overflow-hidden">
-                  <CardContent className="p-3">
-                    <div className="flex items-start">
-                      <Skeleton className="w-16 h-20 sm:w-20 sm:h-24 rounded-md" />
-                      <div className="ml-3 flex-1">
-                        <Skeleton className="h-5 w-full mb-2" />
-                        <Skeleton className="h-4 w-3/4 mb-1" />
-                        <Skeleton className="h-4 w-1/2" />
+                <Card
+                  key={idx}
+                  className="border-purple-800/30 bg-gradient-to-br from-black/80 to-purple-950/40 overflow-hidden shadow-lg shadow-purple-900/20"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex flex-col sm:flex-row items-start">
+                      <Skeleton className="w-full sm:w-24 h-32 rounded-lg mb-3 sm:mb-0 bg-purple-800/20" />
+                      <div className="sm:ml-4 flex-1">
+                        <Skeleton className="h-5 w-full mb-2 bg-purple-800/20" />
+                        <Skeleton className="h-4 w-3/4 mb-3 bg-purple-800/20" />
+                        <Skeleton className="h-6 w-1/3 mb-3 bg-purple-800/20" />
+                        <Skeleton className="h-3 w-1/2 bg-purple-800/20" />
                       </div>
                     </div>
                   </CardContent>
@@ -229,3 +256,4 @@ function ScheduleSkeleton() {
     </div>
   )
 }
+
