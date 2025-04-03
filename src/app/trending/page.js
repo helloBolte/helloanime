@@ -1,50 +1,50 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import useSWR from "swr"
-import { motion, AnimatePresence } from "framer-motion"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { TrendingUp, Calendar, Info } from "lucide-react"
+import { useState, useEffect } from "react";
+import useSWR from "swr";
+import { motion, AnimatePresence } from "framer-motion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TrendingUp, Calendar, Info } from "lucide-react";
 import Link from "next/link";
 
 // SWR fetcher that calls your internal trending API endpoint
-const fetcher = (url) => fetch(url).then((res) => res.json())
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function TrendingAnimePage() {
-  const [activeSeason, setActiveSeason] = useState("Summer")
+  const [activeSeason, setActiveSeason] = useState("Summer");
 
   // Determine default season based on the current month
   useEffect(() => {
-    const month = new Date().getMonth()
-    let defaultSeason = "Summer"
+    const month = new Date().getMonth();
+    let defaultSeason = "Summer";
     if (month >= 9) {
-      defaultSeason = "Fall"
+      defaultSeason = "Fall";
     } else if (month < 3) {
-      defaultSeason = "Winter"
+      defaultSeason = "Winter";
     }
-    setActiveSeason(defaultSeason)
-  }, [])
+    setActiveSeason(defaultSeason);
+  }, []);
 
   // Fetch trending anime data from your API
-  const { data, error, isLoading } = useSWR("/api/trending", fetcher)
+  const { data, error, isLoading } = useSWR("/api/trending", fetcher);
 
   // Extract the media array from the document matching the activeSeason
   const filteredAnime = data
     ? data.find((doc) => doc._id === activeSeason)?.media || []
-    : []
+    : [];
 
   // Helper: Get season year (based on activeSeason)
   const getSeasonYear = (season) => {
-    const now = new Date()
-    const currentYear = now.getFullYear()
-    const month = now.getMonth()
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const month = now.getMonth();
     if (season === "Winter") {
-      return month <= 2 ? currentYear : currentYear + 1
+      return month <= 2 ? currentYear : currentYear + 1;
     }
-    return currentYear
-  }
+    return currentYear;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black to-purple-950 text-white p-4 md:p-8">
@@ -110,40 +110,19 @@ export default function TrendingAnimePage() {
               {isLoading ? (
                 <AnimeSkeletonList />
               ) : (
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={season}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-6"
-                  >
-                    {season === activeSeason &&
-                      filteredAnime.map((anime, index) => (
-                        <AnimeCard key={anime.id} anime={anime} index={index} />
-                      ))}
-                  </motion.div>
-                </AnimatePresence>
+                <AnimeList filteredAnime={filteredAnime} />
               )}
             </motion.div>
           </TabsContent>
         ))}
       </Tabs>
     </div>
-  )
+  );
 }
 
+// --- Component for displaying each anime card ---
 function AnimeCard({ anime, index }) {
-  const [isExpanded, setIsExpanded] = useState(false)
-
-  // Truncate description
-  const truncateDescription = (text, maxLength = 150) => {
-    if (!text) return "No description available."
-    const cleanText = text.replace(/<[^>]+>/g, "")
-    if (cleanText.length <= maxLength) return cleanText
-    return cleanText.substring(0, maxLength) + "..."
-  }
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
     <motion.div
@@ -152,71 +131,123 @@ function AnimeCard({ anime, index }) {
       transition={{ duration: 0.4, delay: index * 0.1 }}
     >
       <Link href={`/anime/${anime.id}`} className="block">
-      <Card className="overflow-hidden border-purple-800/50 bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all duration-300">
-        <CardContent className="p-0">
-          <div className="flex flex-col md:flex-row">
-            <div className="relative w-full md:w-1/3 h-[200px] md:h-auto">
-              <img
-                src={anime.coverImage.large || anime.coverImage.medium}
-                alt={anime.title.english || anime.title.romaji}
-                className="w-full h-full object-cover"
-              />
-              {anime.averageScore && (
-                <div className="absolute top-2 right-2 bg-purple-800 text-white rounded-full w-10 h-10 flex items-center justify-center text-sm font-bold">
-                  {anime.averageScore}%
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 flex-1">
-              <CardHeader className="p-0 pb-2">
-                <CardTitle className="text-xl font-bold text-purple-200">
-                  {anime.title.english || anime.title.romaji}
-                </CardTitle>
-                <div className="flex flex-wrap gap-2 mt-2 text-white">
-                  {anime.genres?.slice(0, 3).map((genre) => (
-                    <span key={genre} className="text-xs bg-purple-900/70 px-2 py-1 rounded-full">
-                      {genre}
-                    </span>
-                  ))}
-                </div>
-              </CardHeader>
-
-              <div className="mt-2 text-sm text-gray-300">
-                {anime.episodes && <div className="mb-1">Episodes: {anime.episodes}</div>}
-                {anime.status && <div className="mb-3 capitalize">{anime.status.toLowerCase().replace("_", " ")}</div>}
+        <Card className="overflow-hidden border-purple-800/50 bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all duration-300">
+          <CardContent className="p-0">
+            <div className="flex flex-col md:flex-row">
+              <div className="relative w-full md:w-1/3 h-[200px] md:h-auto">
+                <img
+                  src={anime.coverImage.large || anime.coverImage.medium}
+                  alt={anime.title.english || anime.title.romaji}
+                  className="w-full h-full object-cover"
+                />
+                {anime.averageScore && (
+                  <div className="absolute top-2 right-2 bg-purple-800 text-white rounded-full w-10 h-10 flex items-center justify-center text-sm font-bold">
+                    {anime.averageScore}%
+                  </div>
+                )}
               </div>
 
-              <motion.div
-                className="text-sm text-gray-300 mt-2"
-                animate={{ height: isExpanded ? "auto" : "80px" }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className={`${!isExpanded && "line-clamp-3"}`}>
-                  {anime.description
-                    ? anime.description.replace(/<[^>]+>/g, "")
-                    : "No description available."}
-                </div>
-              </motion.div>
+              <div className="p-4 flex-1">
+                <CardHeader className="p-0 pb-2">
+                  <CardTitle className="text-xl font-bold text-purple-200">
+                    {anime.title.english || anime.title.romaji}
+                  </CardTitle>
+                  <div className="flex flex-wrap gap-2 mt-2 text-white">
+                    {anime.genres?.slice(0, 3).map((genre) => (
+                      <span key={genre} className="text-xs bg-purple-900/70 px-2 py-1 rounded-full">
+                        {genre}
+                      </span>
+                    ))}
+                  </div>
+                </CardHeader>
 
-              {anime.description && anime.description.length > 150 && (
-                <button
-                  onClick={() => setIsExpanded(!isExpanded)}
-                  className="mt-2 text-purple-400 text-sm flex items-center hover:text-purple-300 transition-colors"
+                <div className="mt-2 text-sm text-gray-300">
+                  {anime.episodes && <div className="mb-1">Episodes: {anime.episodes}</div>}
+                  {anime.status && <div className="mb-3 capitalize">{anime.status.toLowerCase().replace("_", " ")}</div>}
+                </div>
+
+                <motion.div
+                  className="text-sm text-gray-300 mt-2"
+                  animate={{ height: isExpanded ? "auto" : "80px" }}
+                  transition={{ duration: 0.3 }}
                 >
-                  <Info className="h-3 w-3 mr-1" />
-                  {isExpanded ? "Show less" : "Read more"}
-                </button>
-              )}
+                  <div className={`${!isExpanded && "line-clamp-3"}`}>
+                    {anime.description
+                      ? anime.description.replace(/<[^>]+>/g, "")
+                      : "No description available."}
+                  </div>
+                </motion.div>
+
+                {anime.description && anime.description.length > 150 && (
+                  <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="mt-2 text-purple-400 text-sm flex items-center hover:text-purple-300 transition-colors"
+                  >
+                    <Info className="h-3 w-3 mr-1" />
+                    {isExpanded ? "Show less" : "Read more"}
+                  </button>
+                )}
+              </div>
             </div>
+          </CardContent>
+        </Card>
+      </Link>
+    </motion.div>
+  );
+}
+
+// --- Advertisement Card Component ---
+function AdCard() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.2 }}
+    >
+      <Card className="overflow-hidden border-purple-800/50 bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all duration-300 flex items-center justify-center">
+        <CardContent className="p-4">
+          <div id="ad-frame" className="w-[728px] h-auto mx-auto">
+            <iframe
+              data-aa="2388511"
+              src="//ad.a-ads.com/2388511?size=728x90"
+              className="w-[728px] h-[90px] border-0 p-0 overflow-hidden bg-transparent"
+            ></iframe>
+            <a
+              className="block text-right text-xs text-purple-400 hover:text-purple-300"
+              href="https://aads.com/campaigns/new/?source_id=2388511&source_type=ad_unit&partner=2388511"
+            >
+              Advertise here
+            </a>
           </div>
         </CardContent>
       </Card>
-      </Link>
     </motion.div>
-  )
+  );
 }
 
+// --- Component to Render the List of Anime Cards (with AdCard included) ---
+function AnimeList({ filteredAnime }) {
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key="anime-list"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-6"
+      >
+        {filteredAnime.map((anime, index) => (
+          <AnimeCard key={anime.id} anime={anime} index={index} />
+        ))}
+        {/* Insert the advertisement as one of the cards */}
+        <AdCard />
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// --- Skeleton Loader for the Anime Cards ---
 function AnimeSkeletonList() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -244,5 +275,5 @@ function AnimeSkeletonList() {
         </Card>
       ))}
     </div>
-  )
+  );
 }
