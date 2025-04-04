@@ -78,6 +78,40 @@ function addIntroOutroMarkers(art, skipData) {
   }
 }
 
+// AdBanner component using your provided ad code.
+function AdBanner() {
+  return (
+    <div
+      id="frame"
+      style={{ width: "100%" }}
+    >
+      <iframe
+        data-aa="2388508"
+        src="//acceptable.a-ads.com/2388508"
+        style={{
+          border: 0,
+          padding: 0,
+          width: "100%",
+          height: "100%",
+          overflow: "hidden",
+          backgroundColor: "transparent"
+        }}
+      ></iframe>
+      <a
+        style={{
+          display: "block",
+          textAlign: "right",
+          fontSize: "12px"
+        }}
+        id="frame-link"
+        href="https://aads.com/campaigns/new/?source_id=2388508&source_type=ad_unit&partner=2388508"
+      >
+        Advertise here
+      </a>
+    </div>
+  );
+}
+
 export default function WatchPage() {
   const { anilistId } = useParams();
   const cookieKey = `watchSettings_${anilistId}`;
@@ -396,6 +430,10 @@ export default function WatchPage() {
           <h1 className="text-3xl font-bold mb-4">
             {animeName || "Anime Title"}
           </h1>
+
+          {/* Ad Banner Above Player with dynamic key */}
+          <AdBanner key={`${currentProvider?.providerId || 'none'}-${currentEpisode?.id || 'none'}-${audioTrack}`} />
+
           {currentEpisode ? (
             isEpisodeUnavailable ? (
               <div className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
@@ -412,6 +450,9 @@ export default function WatchPage() {
               Select an episode
             </div>
           )}
+
+          {/* Ad Banner Below Player with dynamic key */}
+          <AdBanner key={`below-${currentProvider?.providerId || 'none'}-${currentEpisode?.id || 'none'}-${audioTrack}`} />
         </div>
         <div className="bg-[#1f1f1f] p-4">
           {currentEpisode && (

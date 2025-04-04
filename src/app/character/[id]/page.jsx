@@ -25,12 +25,8 @@ function CharacterDetails({ character }) {
     <div className="mt-6 bg-gray-800 rounded-lg p-4">
       <h2 className="text-2xl font-bold text-purple-400 mb-4">Details</h2>
       <ul className="space-y-2">
-        {character.gender && (
-          <li><strong>Gender:</strong> {character.gender}</li>
-        )}
-        {character.age && (
-          <li><strong>Age:</strong> {character.age}</li>
-        )}
+        {character.gender && <li><strong>Gender:</strong> {character.gender}</li>}
+        {character.age && <li><strong>Age:</strong> {character.age}</li>}
         {character.dateOfBirth.month && (
           <li className="flex items-center">
             <Cake className="w-5 h-5 mr-2 text-purple-400" />
@@ -163,54 +159,63 @@ export default function CharacterPage() {
   }, [id]);
 
   if (loading) {
-    return (
-      <Suspense fallback={<LoadingState />}>
-        <LoadingState />
-      </Suspense>
-    );
+    return <LoadingState />;
   }
 
   if (!character) {
-    return (
-      <Suspense fallback={<LoadingState />}>
-        <div className="container mx-auto px-4 py-8 text-center text-purple-500 bg-gray-900">Character not found</div>
-      </Suspense>
-    );
+    return <div className="container mx-auto px-4 py-8 text-center text-purple-500 bg-gray-900">Character not found</div>;
   }
 
   return (
-    <Suspense fallback={<LoadingState />}>
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="min-h-screen bg-gray-900 text-gray-100"
-      >
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex flex-col md:flex-row gap-8">
-            <div className="md:w-1/3">
-              <img
-                src={character.image.large || "/placeholder.svg"}
-                alt={character.name.full}
-                className="w-full rounded-lg shadow-lg"
-              />
-              <CharacterDetails character={character} />
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="min-h-screen bg-gray-900 text-gray-100"
+    >
+      <div className="container mx-auto px-4 py-8">
+        
+        {/* Ad Banner */}
+        <div id="frame" className="w-full mb-6">
+          <iframe 
+            data-aa="2388506" 
+            src="//acceptable.a-ads.com/2388506" 
+            style={{ border: 0, padding: 0, width: "100%", height: 250, overflow: "hidden", backgroundColor: "transparent" }}
+          ></iframe>
+          <a className="block text-right text-xs" id="frame-link" href="https://aads.com/campaigns/new/?source_id=2388506&source_type=ad_unit&partner=2388506">
+            Advertise here
+          </a>
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-8">
+          <div className="md:w-1/3">
+            <img src={character.image.large || "/placeholder.svg"} alt={character.name.full} className="w-full rounded-lg shadow-lg" />
+            <CharacterDetails character={character} />
+          </div>
+          <div className="md:w-2/3">
+            <h1 className="text-4xl font-bold text-purple-400 mb-2">{character.name.full}</h1>
+            {character.name.native && <h2 className="text-2xl text-purple-300 mb-4">{character.name.native}</h2>}
+            <div className="mb-8">
+              <h3 className="text-xl font-semibold mb-2 text-purple-300">About</h3>
+              <p className="text-gray-300" dangerouslySetInnerHTML={{ __html: character.description }}></p>
             </div>
-            <div className="md:w-2/3">
-              <h1 className="text-4xl font-bold text-purple-400 mb-2">{character.name.full}</h1>
-              {character.name.native && (
-                <h2 className="text-2xl text-purple-300 mb-4">{character.name.native}</h2>
-              )}
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold mb-2 text-purple-300">About</h3>
-                <p className="text-gray-300" dangerouslySetInnerHTML={{ __html: character.description }}></p>
-              </div>
-              <CharacterAppearances media={character.media.nodes} />
-            </div>
+            <CharacterAppearances media={character.media.nodes} />
           </div>
         </div>
-      </motion.div>
-    </Suspense>
+
+        {/* Second Ad Banner */}
+        <div id="frame" className="w-full mt-6">
+          <iframe 
+            data-aa="2388506" 
+            src="//acceptable.a-ads.com/2388506" 
+            style={{ border: 0, padding: 0, width: "100%", height: 250, overflow: "hidden", backgroundColor: "transparent" }}
+          ></iframe>
+          <a className="block text-right text-xs" id="frame-link" href="https://aads.com/campaigns/new/?source_id=2388506&source_type=ad_unit&partner=2388506">
+            Advertise here
+          </a>
+        </div>
+        
+      </div>
+    </motion.div>
   );
 }
-

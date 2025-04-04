@@ -65,6 +65,19 @@ function InnerSearchPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <div className="container mx-auto py-5 px-4">
+
+        {/* Ad Banner */}
+        <div id="frame" className="w-full mb-6">
+          <iframe 
+            data-aa="2388506" 
+            src="//acceptable.a-ads.com/2388506" 
+            style={{ border: 0, padding: 0, width: "100%", height: 250, overflow: "hidden", backgroundColor: "transparent" }}
+          ></iframe>
+          <a className="block text-right text-xs" id="frame-link" href="https://aads.com/campaigns/new/?source_id=2388506&source_type=ad_unit&partner=2388506">
+            Advertise here
+          </a>
+        </div>
+
         <h1 className="text-3xl font-bold mb-6 text-purple-300">
           Search Result: {query}
         </h1>
@@ -89,6 +102,19 @@ function InnerSearchPage() {
             Next
           </button>
         </div>
+
+        {/* Second Ad Banner (Optional) */}
+        <div id="frame" className="w-full mt-6">
+          <iframe 
+            data-aa="2388506" 
+            src="//acceptable.a-ads.com/2388506" 
+            style={{ border: 0, padding: 0, width: "100%", height: 250, overflow: "hidden", backgroundColor: "transparent" }}
+          ></iframe>
+          <a className="block text-right text-xs" id="frame-link" href="https://aads.com/campaigns/new/?source_id=2388506&source_type=ad_unit&partner=2388506">
+            Advertise here
+          </a>
+        </div>
+
       </div>
     </div>
   );

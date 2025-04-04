@@ -98,6 +98,37 @@ function AnimeDetailContent({ anime }) {
                 dangerouslySetInnerHTML={{ __html: anime.description }}
               ></p>
             </div>
+
+            {/* Ad insertion */}
+            <div className="my-4">
+              <div id="frame" style={{ width: "100%" }}>
+                <iframe 
+                  data-aa="2388508" 
+                  src="//acceptable.a-ads.com/2388508" 
+                  style={{
+                    border: "0px",
+                    padding: "0",
+                    width: "100%",
+                    height: "100%",
+                    overflow: "hidden",
+                    backgroundColor: "transparent"
+                  }}
+                ></iframe>
+                <a 
+                  style={{
+                    display: "block",
+                    textAlign: "right",
+                    fontSize: "12px"
+                  }} 
+                  id="frame-link" 
+                  href="https://aads.com/campaigns/new/?source_id=2388508&source_type=ad_unit&partner=2388508"
+                >
+                  Advertise here
+                </a>
+              </div>
+            </div>
+            {/* End of Ad insertion */}
+
           </div>
         </div>
 
