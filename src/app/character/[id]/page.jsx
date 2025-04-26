@@ -175,18 +175,6 @@ export default function CharacterPage() {
     >
       <div className="container mx-auto px-4 py-8">
         
-        {/* Ad Banner */}
-        <div id="frame" className="w-full mb-6">
-          <iframe 
-            data-aa="2388506" 
-            src="//acceptable.a-ads.com/2388506" 
-            style={{ border: 0, padding: 0, width: "100%", height: 250, overflow: "hidden", backgroundColor: "transparent" }}
-          ></iframe>
-          <a className="block text-right text-xs" id="frame-link" href="https://aads.com/campaigns/new/?source_id=2388506&source_type=ad_unit&partner=2388506">
-            Advertise here
-          </a>
-        </div>
-
         <div className="flex flex-col md:flex-row gap-8">
           <div className="md:w-1/3">
             <img src={character.image.large || "/placeholder.svg"} alt={character.name.full} className="w-full rounded-lg shadow-lg" />
@@ -201,18 +189,6 @@ export default function CharacterPage() {
             </div>
             <CharacterAppearances media={character.media.nodes} />
           </div>
-        </div>
-
-        {/* Second Ad Banner */}
-        <div id="frame" className="w-full mt-6">
-          <iframe 
-            data-aa="2388506" 
-            src="//acceptable.a-ads.com/2388506" 
-            style={{ border: 0, padding: 0, width: "100%", height: 250, overflow: "hidden", backgroundColor: "transparent" }}
-          ></iframe>
-          <a className="block text-right text-xs" id="frame-link" href="https://aads.com/campaigns/new/?source_id=2388506&source_type=ad_unit&partner=2388506">
-            Advertise here
-          </a>
         </div>
         
       </div>

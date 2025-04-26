@@ -99,7 +99,11 @@ export default function TrendingAnimePage() {
 
         {["Fall", "Summer", "Winter"].map((season) => (
           <TabsContent key={season} value={season} className="mt-0">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
               <div className="flex items-center justify-center gap-2 mb-6">
                 <TrendingUp className="h-5 w-5 text-purple-400" />
                 <h2 className="text-xl md:text-2xl font-semibold text-center">
@@ -163,7 +167,11 @@ function AnimeCard({ anime, index }) {
 
                 <div className="mt-2 text-sm text-gray-300">
                   {anime.episodes && <div className="mb-1">Episodes: {anime.episodes}</div>}
-                  {anime.status && <div className="mb-3 capitalize">{anime.status.toLowerCase().replace("_", " ")}</div>}
+                  {anime.status && (
+                    <div className="mb-3 capitalize">
+                      {anime.status.toLowerCase().replace("_", " ")}
+                    </div>
+                  )}
                 </div>
 
                 <motion.div
@@ -196,36 +204,7 @@ function AnimeCard({ anime, index }) {
   );
 }
 
-// --- Advertisement Card Component ---
-function AdCard() {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.2 }}
-    >
-      <Card className="overflow-hidden border-purple-800/50 bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-all duration-300 flex items-center justify-center">
-        <CardContent className="p-4">
-          <div id="ad-frame" className="w-[728px] h-auto mx-auto">
-            <iframe
-              data-aa="2388511"
-              src="//ad.a-ads.com/2388511?size=728x90"
-              className="w-[728px] h-[90px] border-0 p-0 overflow-hidden bg-transparent"
-            ></iframe>
-            <a
-              className="block text-right text-xs text-purple-400 hover:text-purple-300"
-              href="https://aads.com/campaigns/new/?source_id=2388511&source_type=ad_unit&partner=2388511"
-            >
-              Advertise here
-            </a>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-}
-
-// --- Component to Render the List of Anime Cards (with AdCard included) ---
+// --- Component to Render the List of Anime Cards ---
 function AnimeList({ filteredAnime }) {
   return (
     <AnimatePresence mode="wait">
@@ -240,8 +219,6 @@ function AnimeList({ filteredAnime }) {
         {filteredAnime.map((anime, index) => (
           <AnimeCard key={anime.id} anime={anime} index={index} />
         ))}
-        {/* Insert the advertisement as one of the cards */}
-        <AdCard />
       </motion.div>
     </AnimatePresence>
   );

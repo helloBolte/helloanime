@@ -6,17 +6,6 @@ import axios from "axios";
 import ArtPlayer from "artplayer";
 import Hls from "hls.js";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-
-// --- Round Robin Helper for Pahe Endpoints ---
-const paheEndpoints = ["/api/gpahe", "/api/gpahe2", "/api/gpahe3"];
-let paheEndpointIndex = 0;
-function getNextPaheEndpoint() {
-  const endpoint = paheEndpoints[paheEndpointIndex];
-  paheEndpointIndex = (paheEndpointIndex + 1) % paheEndpoints.length;
-  return endpoint;
-}
-// --- End Round Robin Helper ---
 
 // Helper: Proxy image URL via /api/gimg if necessary.
 const getImageUrl = (url) => {
@@ -27,7 +16,7 @@ const getImageUrl = (url) => {
   return url;
 };
 
-// Enhanced cookie helpers
+// Enhanced cookie helpers.
 function getCookie(name) {
   if (typeof document === "undefined") return null;
   const value = `; ${document.cookie}`;
@@ -78,40 +67,6 @@ function addIntroOutroMarkers(art, skipData) {
   }
 }
 
-// AdBanner component using your provided ad code.
-function AdBanner() {
-  return (
-    <div
-      id="frame"
-      style={{ width: "100%" }}
-    >
-      <iframe
-        data-aa="2388508"
-        src="//acceptable.a-ads.com/2388508"
-        style={{
-          border: 0,
-          padding: 0,
-          width: "100%",
-          height: "100%",
-          overflow: "hidden",
-          backgroundColor: "transparent"
-        }}
-      ></iframe>
-      <a
-        style={{
-          display: "block",
-          textAlign: "right",
-          fontSize: "12px"
-        }}
-        id="frame-link"
-        href="https://aads.com/campaigns/new/?source_id=2388508&source_type=ad_unit&partner=2388508"
-      >
-        Advertise here
-      </a>
-    </div>
-  );
-}
-
 export default function WatchPage() {
   const { anilistId } = useParams();
   const cookieKey = `watchSettings_${anilistId}`;
@@ -134,10 +89,10 @@ export default function WatchPage() {
     };
   })();
 
-  // State for anime name (initialize from cookie if available)
+  // State for anime title.
   const [animeName, setAnimeName] = useState(initialWatchSettings.animeTitle || "");
 
-  // Watch settings and audio track (initialized from cookie if available).
+  // Watch settings and audio track.
   const [watchSettings, setWatchSettings] = useState(initialWatchSettings);
   const [audioTrack, setAudioTrack] = useState(initialWatchSettings?.audio || "sub");
 
@@ -158,7 +113,7 @@ export default function WatchPage() {
   const playerContainerRef = useRef(null);
   const artPlayerRef = useRef(null);
 
-  // Fetch anime name from AniList only if not in cookie
+  // Fetch anime name from AniList only if not in cookie.
   useEffect(() => {
     if (!anilistId || initialWatchSettings.animeTitle) return;
     
@@ -179,8 +134,7 @@ export default function WatchPage() {
       })
       .then((res) => {
         const media = res.data.data.Media;
-        const title =
-          media.title.romaji || media.title.english || media.title.native;
+        const title = media.title.romaji || media.title.english || media.title.native;
         setAnimeName(title);
       })
       .catch((err) => {
@@ -188,7 +142,7 @@ export default function WatchPage() {
       });
   }, [anilistId, initialWatchSettings.animeTitle]);
 
-  // Read cookie on initial load (in case it changes).
+  // Read cookie on initial load.
   useEffect(() => {
     if (!anilistId) return;
     const cookieVal = getCookie(cookieKey);
@@ -205,23 +159,20 @@ export default function WatchPage() {
     }
   }, [anilistId, cookieKey]);
 
-  // Fetch providers from /api/gepisodes and filter to only use "strix" and "zaza".
+  // Fetch providers from /api/gepisodes and filter to use only "strix".
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true);
         const res = await axios.get(`/api/gepisodes?id=${anilistId}`);
-        const data = res.data;
-        const filteredData = data.filter(
-          (p) => p.providerId === "strix" || p.providerId === "zaza"
-        );
+        // Filter out any provider that is not "strix"
+        const filteredData = res.data.filter((p) => p.providerId === "strix");
         if (filteredData && filteredData.length > 0) {
           setProviders(filteredData);
+          // Use cookie saved provider if available and valid.
           const savedProviderId = watchSettings?.provider;
           const defaultProvider =
-            filteredData.find((p) => p.providerId === savedProviderId) ||
-            filteredData.find((p) => p.providerId === "strix") ||
-            filteredData.find((p) => p.providerId === "zaza");
+            filteredData.find((p) => p.providerId === savedProviderId) || filteredData[0];
           setCurrentProvider(defaultProvider);
           setAudioTrack(watchSettings?.audio || "sub");
         }
@@ -247,12 +198,11 @@ export default function WatchPage() {
     setCurrentPage(1);
 
     if (filtered.length > 0) {
-      // Try to maintain current episode number
+      // Maintain current episode number if possible.
       const currentEpNumber = currentEpisode?.number;
       const targetEpisode = filtered.find(ep => ep.number === currentEpNumber) || 
                            filtered.find(ep => ep.number === watchSettings?.episode) || 
                            filtered[0];
-      
       setCurrentEpisode(targetEpisode);
     } else {
       setCurrentEpisode(null);
@@ -263,16 +213,9 @@ export default function WatchPage() {
   useEffect(() => {
     async function fetchEpisodeDetails() {
       if (!currentEpisode || !currentProvider) return;
-      let watchId = "";
-      let dub_id = "";
-      if (currentProvider.providerId === "zaza") {
-        watchId = currentEpisode.id;
-        dub_id = currentEpisode.dub_id || "null";
-      } else {
-        watchId = currentEpisode.number;
-        dub_id = "null";
-      }
-      const url = `/api/gwatch?provider=${currentProvider.providerId}&id=${anilistId}&num=${currentEpisode.number}&subType=${audioTrack}&watchId=${watchId}&dub_id=${dub_id}`;
+      // For "strix", use episode number directly.
+      const watchId = currentEpisode.number;
+      const url = `/api/gwatch?provider=${currentProvider.providerId}&id=${anilistId}&num=${currentEpisode.number}&subType=${audioTrack}&watchId=${watchId}`;
       try {
         const res = await axios.get(url);
         setEpisodeDetails(res.data);
@@ -307,12 +250,15 @@ export default function WatchPage() {
     ) {
       return;
     }
-    let rawVideoUrl = "";
+    // In this version only "strix" is supported.
+    const rawVideoUrl = episodeDetails.sources[0].url;
     const artConfig = {
       container: playerContainerRef.current,
+      url: rawVideoUrl,
       poster: getImageUrl(currentEpisode.image),
       cover: getImageUrl(currentEpisode.image),
       autoSize: false,
+      autoHide: false,
       width: "100%",
       height: "200px sm:h-[300px] md:h-[400px]",
       volume: 0.5,
@@ -327,55 +273,57 @@ export default function WatchPage() {
       autoplay: true,
       plugins: [],
     };
-    if (currentProvider?.providerId === "zaza") {
-      rawVideoUrl = `/api/gzaza?url=${encodeURIComponent(episodeDetails.sources[0].url)}`;
-      artConfig.type = "m3u8";
-      artConfig.customType = {
-        m3u8: (video, url) => {
-          class CustomLoader extends Hls.DefaultConfig.loader {
-            load(context, config, callbacks) {
-              if (context.url && !context.url.startsWith("/api/gzaza?url=")) {
-                context.url = `/api/gzaza?url=${encodeURIComponent(context.url)}`;
-              }
-              super.load(context, config, callbacks);
-            }
-          }
-          const hls = new Hls({ loader: CustomLoader });
-          hls.loadSource(url);
-          hls.attachMedia(video);
-          return hls;
-        },
-      };
-      if (episodeDetails.skips) {
-        artConfig.plugins.push((art) => {
-          art.on("loadedmetadata", () => {
-            addIntroOutroMarkers(art, episodeDetails.skips);
-          });
-          return () => {};
+
+    // Add timeline markers if skip data is available.
+    if (episodeDetails.skips) {
+      artConfig.plugins.push((art) => {
+        art.on("loadedmetadata", () => {
+          addIntroOutroMarkers(art, episodeDetails.skips);
         });
-      }
-    } else if (currentProvider?.providerId === "strix") {
-      rawVideoUrl = episodeDetails.sources[0].url;
-      if (episodeDetails.skips) {
-        artConfig.plugins.push((art) => {
-          art.on("loadedmetadata", () => {
-            addIntroOutroMarkers(art, episodeDetails.skips);
-          });
-          return () => {};
-        });
-      }
-    } else {
-      rawVideoUrl = episodeDetails.sources[0].url;
+        return () => {};
+      });
     }
-    artConfig.url = rawVideoUrl;
+
     const art = new ArtPlayer(artConfig);
     artPlayerRef.current = art;
+
     art.on("loadedmetadata", () => {
       console.log("ArtPlayer loaded metadata");
     });
     art.on("error", (error) => {
       console.error("ArtPlayer error:", error);
     });
+
+// Add custom seek buttons for 10 seconds forward and backward.
+art.on("ready", () => {
+  console.log("ArtPlayer ready event fired");
+  const playerContainer = art.container;
+  console.log("Player container:", playerContainer);
+  // Try inserting the custom buttons at the end of the container for testing.
+  const skipContainer = document.createElement("div");
+  skipContainer.style.position = "absolute";
+  skipContainer.style.top = "10px"; // Adjust as needed.
+  skipContainer.style.right = "10px";
+  skipContainer.style.zIndex = "9999";
+  skipContainer.innerHTML = `
+    <button id="rewind-btn">Rewind 10s</button>
+    <button id="forward-btn">Forward 10s</button>
+  `;
+  playerContainer.appendChild(skipContainer);
+
+  // Set up button handlers:
+  const rewindButton = document.getElementById("rewind-btn");
+  rewindButton.addEventListener("click", () => {
+    art.seek(Math.max(0, art.currentTime - 10));
+  });
+  const forwardButton = document.getElementById("forward-btn");
+  forwardButton.addEventListener("click", () => {
+    art.seek(Math.min(art.duration, art.currentTime + 10));
+  });
+});
+
+
+
     return () => {
       if (artPlayerRef.current) {
         artPlayerRef.current.destroy();
@@ -425,19 +373,20 @@ export default function WatchPage() {
     <div className="min-h-screen bg-[#121212] text-white flex flex-col md:flex-row">
       {/* MAIN CONTENT (Video player and details) */}
       <div className="order-1 md:order-2 flex-1 flex flex-col">
-        {/* Anime name shown as a header above the video player */}
+        {/* Anime title shown as a header above the video player */}
         <div className="p-4">
           <h1 className="text-3xl font-bold mb-4">
             {animeName || "Anime Title"}
           </h1>
-
-          {/* Ad Banner Above Player with dynamic key */}
-          <AdBanner key={`${currentProvider?.providerId || 'none'}-${currentEpisode?.id || 'none'}-${audioTrack}`} />
-
           {currentEpisode ? (
-            isEpisodeUnavailable ? (
+            // Show a spinner until episodeDetails load.
+            !episodeDetails ? (
               <div className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
-                {`${audioTrack.toUpperCase()} track is not available for this provider. Please change the server.`}
+                <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : isEpisodeUnavailable ? (
+              <div className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
+                {`${audioTrack.toUpperCase()} track is not available for this server. Please change the server or track.`}
               </div>
             ) : (
               <div
@@ -450,9 +399,6 @@ export default function WatchPage() {
               Select an episode
             </div>
           )}
-
-          {/* Ad Banner Below Player with dynamic key */}
-          <AdBanner key={`below-${currentProvider?.providerId || 'none'}-${currentEpisode?.id || 'none'}-${audioTrack}`} />
         </div>
         <div className="bg-[#1f1f1f] p-4">
           {currentEpisode && (
@@ -494,12 +440,12 @@ export default function WatchPage() {
             )}
             {!hasAnyDub && audioTrack === "dub" && (
               <span className="text-red-400 ml-2">
-                No dub episodes available for this provider.
+                No dub episodes available for this server.
               </span>
             )}
           </div>
           <div className="mb-2">
-            <span className="font-bold text-gray-300 mr-2">Servers:</span>
+            <span className="font-bold text-gray-300 mr-2">Server:</span>
             {providers.map((provider) => (
               <button
                 key={provider.providerId}
@@ -510,7 +456,7 @@ export default function WatchPage() {
                     : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
                 }`}
               >
-                {provider.providerId === "strix" ? "Server 1" : "Server 2"}
+                Server 1
               </button>
             ))}
           </div>
@@ -534,12 +480,11 @@ export default function WatchPage() {
             }}
           />
         </div>
-        <div
-          className="p-4 space-y-2 overflow-y-auto"
-          style={{ maxHeight: "400px" }}
-        >
+        <div className="p-4 space-y-2 overflow-y-auto" style={{ maxHeight: "400px" }}>
           {loading ? (
-            <Skeleton className="h-8 w-full" />
+            <div className="w-full flex justify-center">
+              <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+            </div>
           ) : paginatedEpisodes.length > 0 ? (
             paginatedEpisodes.map((ep) => (
               <button

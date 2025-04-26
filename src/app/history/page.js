@@ -1,4 +1,4 @@
-"use client";
+"use client"
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -69,9 +69,6 @@ export default function ContinueWatchingPage() {
   return (
     <div className="min-h-screen bg-[#121212] text-white p-4 sm:p-8">
       <h1 className="text-2xl sm:text-3xl font-bold mb-6">Continue Watching</h1>
-
-      {/* Advertisement Banner */}
-      <AdBanner />
 
       {loading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -147,36 +144,6 @@ export default function ContinueWatchingPage() {
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function AdBanner() {
-  return (
-    <div id="frame" style={{ width: "100%", height: "100%", marginBottom: "1.5rem" }}>
-      <iframe
-        data-aa="2388517"
-        src="//acceptable.a-ads.com/2388517"
-        style={{
-          border: "0px",
-          padding: "0",
-          width: "100%",
-          height: "100%",
-          overflow: "hidden",
-          backgroundColor: "transparent",
-        }}
-      ></iframe>
-      <a
-        style={{
-          display: "block",
-          textAlign: "right",
-          fontSize: "12px",
-        }}
-        id="preview-link"
-        href="https://aads.com/campaigns/new/?source_id=2388517&source_type=ad_unit&partner=2388517"
-      >
-        Advertise here
-      </a>
     </div>
   );
 }

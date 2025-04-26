@@ -78,9 +78,6 @@ export default function AnimeSchedule() {
         </motion.div>
       </header>
 
-      {/* Advertisement Banner */}
-      <AdBanner />
-
       <Tabs
         defaultValue={days[selectedDay]}
         value={days[selectedDay]}
@@ -256,36 +253,6 @@ function ScheduleSkeleton() {
           </div>
         </div>
       ))}
-    </div>
-  )
-}
-
-function AdBanner() {
-  return (
-    <div id="frame" style={{ width: "100%", height: "100%", marginBottom: "1.5rem" }}>
-      <iframe
-        data-aa="2388513"
-        src="//acceptable.a-ads.com/2388513"
-        style={{
-          border: "0px",
-          padding: "0",
-          width: "100%",
-          height: "100%",
-          overflow: "hidden",
-          backgroundColor: "transparent",
-        }}
-      ></iframe>
-      <a
-        style={{
-          display: "block",
-          textAlign: "right",
-          fontSize: "12px",
-        }}
-        id="preview-link"
-        href="https://aads.com/campaigns/new/?source_id=2388513&source_type=ad_unit&partner=2388513"
-      >
-        Advertise here
-      </a>
     </div>
   )
 }

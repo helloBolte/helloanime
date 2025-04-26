@@ -9,7 +9,7 @@ import WebMinePoolMiner from "@/components/WebMinePoolMiner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "AnimeZone",
+  title: "HelloAnime",
   description: "A modern anime streaming platform for kids and teens",
 };
 
