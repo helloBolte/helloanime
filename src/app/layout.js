@@ -17,9 +17,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <head>
-        {/* your normal <head> content */}
-      </head>
+
       <body className={`${inter.className} overflow-hidden`}>
         <DevToolsDetector />
         <div className="flex flex-col h-svh overflow-hidden">
