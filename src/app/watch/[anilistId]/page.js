@@ -16,7 +16,7 @@ const getImageUrl = (url) => {
   return url;
 };
 
-// Enhanced cookie helpers.
+// Cookie helpers.
 function getCookie(name) {
   if (typeof document === "undefined") return null;
   const value = `; ${document.cookie}`;
@@ -24,7 +24,6 @@ function getCookie(name) {
   if (parts.length === 2) return parts.pop().split(";").shift();
   return null;
 }
-
 function setCookie(name, value, days = 365) {
   if (typeof document === "undefined") return;
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
@@ -35,24 +34,21 @@ export default function WatchPage() {
   const { anilistId } = useParams();
   const cookieKey = `watchSettings_${anilistId}`;
 
-  // Read cookie synchronously during initialization.
+  // Initial settings from cookie
   const initialWatchSettings = (() => {
-    if (typeof document !== "undefined") {
-      const cookieVal = getCookie(cookieKey);
-      if (cookieVal) {
-        try {
-          return JSON.parse(decodeURIComponent(cookieVal));
-        } catch (error) {
-          console.error("Error parsing watchSettings cookie:", error);
-        }
-      }
+    if (typeof document === "undefined") return { thumbnailUrl: "", animeTitle: "" };
+    const cookieVal = getCookie(cookieKey);
+    if (!cookieVal) return { thumbnailUrl: "", animeTitle: "" };
+    try {
+      return JSON.parse(decodeURIComponent(cookieVal));
+    } catch {
+      return { thumbnailUrl: "", animeTitle: "" };
     }
-    return { thumbnailUrl: "", animeTitle: "" };
   })();
 
   const [animeName, setAnimeName] = useState(initialWatchSettings.animeTitle || "");
   const [watchSettings, setWatchSettings] = useState(initialWatchSettings);
-  const [audioTrack, setAudioTrack] = useState(initialWatchSettings?.audio || "sub");
+  const [audioTrack, setAudioTrack] = useState(initialWatchSettings.audio || "sub");
   const [providers, setProviders] = useState([]);
   const [currentProvider, setCurrentProvider] = useState(null);
   const [episodes, setEpisodes] = useState([]);
@@ -66,7 +62,7 @@ export default function WatchPage() {
   const playerContainerRef = useRef(null);
   const artPlayerRef = useRef(null);
 
-  // Fetch anime name from AniList if not in cookie.
+  // Fetch anime title if missing
   useEffect(() => {
     if (!anilistId || initialWatchSettings.animeTitle) return;
     axios
@@ -85,75 +81,68 @@ export default function WatchPage() {
         const title = media.title.romaji || media.title.english || media.title.native;
         setAnimeName(title);
       })
-      .catch((err) => console.error("Error fetching anime info:", err));
+      .catch(console.error);
   }, [anilistId, initialWatchSettings.animeTitle]);
 
-  // On load, read cookie settings.
+  // Reload cookie settings on mount
   useEffect(() => {
     if (!anilistId) return;
     const cookieVal = getCookie(cookieKey);
-    if (cookieVal) {
-      try {
-        const settings = JSON.parse(decodeURIComponent(cookieVal));
-        setWatchSettings(settings);
-        if (settings.animeTitle) setAnimeName(settings.animeTitle);
-      } catch (error) {
-        console.error("Error parsing watchSettings cookie:", error);
-      }
+    if (!cookieVal) return;
+    try {
+      const settings = JSON.parse(decodeURIComponent(cookieVal));
+      setWatchSettings(settings);
+      if (settings.animeTitle) setAnimeName(settings.animeTitle);
+    } catch {
+      // ignore
     }
   }, [anilistId, cookieKey]);
 
-  // Fetch providers (only "strix").
+  // Fetch providers (only “strix”)
   useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-        const res = await axios.get(`/api/gepisodes?id=${anilistId}`);
+    if (!anilistId) return;
+    setLoading(true);
+    axios
+      .get(`/api/gepisodes?id=${anilistId}`)
+      .then((res) => {
         const filtered = res.data.filter((p) => p.providerId === "strix");
         if (filtered.length) {
           setProviders(filtered);
-          const savedId = watchSettings?.provider;
-          const defaultProvider = filtered.find((p) => p.providerId === savedId) || filtered[0];
-          setCurrentProvider(defaultProvider);
-          setAudioTrack(watchSettings?.audio || "sub");
+          const saved = filtered.find((p) => p.providerId === watchSettings.provider) || filtered[0];
+          setCurrentProvider(saved);
+          setAudioTrack(watchSettings.audio || "sub");
         }
-      } catch (error) {
-        console.error("Error fetching providers:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    if (anilistId) fetchData();
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, [anilistId, watchSettings]);
 
-  // Update episode list when provider or audio changes.
+  // Update episode list when provider or audio changes
   useEffect(() => {
     if (!currentProvider) return;
-    let filtered = [...(currentProvider.episodes || [])];
-    if (audioTrack === "dub") filtered = filtered.filter((ep) => ep.hasDub);
-    setEpisodes(filtered);
+    let list = currentProvider.episodes || [];
+    if (audioTrack === "dub") list = list.filter((ep) => ep.hasDub);
+    setEpisodes(list);
     setCurrentPage(1);
-    const epNum = currentEpisode?.number;
-    const target = filtered.find((e) => e.number === epNum) || filtered.find((e) => e.number === watchSettings?.episode) || filtered[0];
+    const findByNum = (num) => list.find((e) => e.number === num);
+    const target =
+      findByNum(currentEpisode?.number) ||
+      findByNum(watchSettings.episode) ||
+      list[0];
     setCurrentEpisode(target || null);
   }, [currentProvider, audioTrack, watchSettings]);
 
-  // Fetch episode details.
+  // Fetch episode streaming details
   useEffect(() => {
-    async function fetchDetails() {
-      if (!currentEpisode || !currentProvider) return;
-      const url = `/api/gwatch?provider=${currentProvider.providerId}&id=${anilistId}&num=${currentEpisode.number}&subType=${audioTrack}&watchId=${currentEpisode.number}`;
-      try {
-        const res = await axios.get(url);
-        setEpisodeDetails(res.data);
-      } catch (error) {
-        console.error("Error fetching episode details:", error.message);
-      }
-    }
-    fetchDetails();
+    if (!currentEpisode || !currentProvider) return;
+    const url = `/api/gwatch?provider=${currentProvider.providerId}&id=${anilistId}&num=${currentEpisode.number}&subType=${audioTrack}&watchId=${currentEpisode.number}`;
+    axios
+      .get(url)
+      .then((res) => setEpisodeDetails(res.data))
+      .catch((err) => console.error("Error fetching episode details:", err));
   }, [currentEpisode, audioTrack, currentProvider, anilistId]);
 
-  // Destroy player when audio track changes.
+  // Destroy player when audio changes
   useEffect(() => {
     if (artPlayerRef.current) {
       artPlayerRef.current.destroy();
@@ -161,17 +150,15 @@ export default function WatchPage() {
     }
   }, [audioTrack]);
 
-  // Initialize ArtPlayer (no skip markers).
+  // Initialize ArtPlayer
   useEffect(() => {
-    if (!playerContainerRef.current) return;
+    if (!playerContainerRef.current || !currentEpisode || !episodeDetails?.sources?.length) return;
     if (artPlayerRef.current) {
       artPlayerRef.current.destroy();
       artPlayerRef.current = null;
     }
-    if (!currentEpisode || !episodeDetails?.sources?.length) return;
-
     const rawUrl = episodeDetails.sources[0].url;
-    const artConfig = {
+    const art = new ArtPlayer({
       container: playerContainerRef.current,
       url: rawUrl,
       poster: getImageUrl(currentEpisode.image),
@@ -190,88 +177,118 @@ export default function WatchPage() {
       crossOrigin: "anonymous",
       autoplay: true,
       plugins: [],
-    };
-
-    const art = new ArtPlayer(artConfig);
-    artPlayerRef.current = art;
-
-    art.on("error", (err) => console.error("ArtPlayer error:", err));
-    art.on("ready", () => {
-      const container = art.container;
-      if (container.querySelector("#rewind-btn")) return;
-      const skipControls = document.createElement("div");
-      skipControls.style.position = "absolute";
-      skipControls.style.top = "10px";
-      skipControls.style.right = "10px";
-      skipControls.style.zIndex = "9999";
-      skipControls.innerHTML = `
-        <button id=\"rewind-btn\">Rewind 10s</button>
-        <button id=\"forward-btn\">Forward 10s</button>
-      `;
-      container.appendChild(skipControls);
-      document.getElementById("rewind-btn").addEventListener("click", () => art.seek(Math.max(0, art.currentTime - 10)));
-      document.getElementById("forward-btn").addEventListener("click", () => art.seek(Math.min(art.duration, art.currentTime + 10)));
     });
-
+    artPlayerRef.current = art;
+    art.on("ready", () => {
+      if (art.container.querySelector("#rewind-btn")) return;
+      const ctrl = document.createElement("div");
+      ctrl.style.cssText = "position:absolute;top:10px;right:10px;z-index:9999;";
+      ctrl.innerHTML = `
+        <button id="rewind-btn">Rewind 10s</button>
+        <button id="forward-btn">Forward 10s</button>
+      `;
+      art.container.appendChild(ctrl);
+      ctrl.querySelector("#rewind-btn").addEventListener("click", () =>
+        art.seek(Math.max(0, art.currentTime - 10))
+      );
+      ctrl.querySelector("#forward-btn").addEventListener("click", () =>
+        art.seek(Math.min(art.duration, art.currentTime + 10))
+      );
+    });
+    art.on("error", console.error);
     return () => art.destroy();
-  }, [currentEpisode, episodeDetails, currentProvider]);
+  }, [currentEpisode, episodeDetails]);
 
-  // Update cookie on change.
+  // Persist to cookie on change
   useEffect(() => {
     if (!currentProvider || !currentEpisode) return;
-    const settings = {
+    setCookie(cookieKey, {
       provider: currentProvider.providerId,
       episode: currentEpisode.number,
       audio: audioTrack,
       thumbnailUrl: currentEpisode.image,
       animeTitle: animeName,
-    };
-    setCookie(cookieKey, settings);
-  }, [currentProvider, currentEpisode, audioTrack, cookieKey, animeName]);
+    });
+  }, [currentProvider, currentEpisode, audioTrack, animeName]);
 
-  const filteredEpisodes = episodes.filter((ep) => {
+  // Search + pagination
+  const filtered = episodes.filter((ep) => {
     const q = searchQuery.toLowerCase();
-    return ep.number.toString().includes(q) || (ep.description && ep.description.toLowerCase().includes(q));
+    return (
+      ep.number.toString().includes(q) ||
+      ep.description?.toLowerCase().includes(q)
+    );
   });
   const startIdx = (currentPage - 1) * episodesPerPage;
-  const paginated = filteredEpisodes.slice(startIdx, startIdx + episodesPerPage);
+  const paginated = filtered.slice(startIdx, startIdx + episodesPerPage);
+  const hasAnyDub = currentProvider?.episodes?.some((ep) => ep.hasDub);
 
-  const handleEpisodeSelect = (ep) => setCurrentEpisode(ep);
-  const handleProviderSelect = (prov) => { setCurrentProvider(prov); setAudioTrack("sub"); };
+  const handleSelectEp = (ep) => setCurrentEpisode(ep);
   const handleNextPage = () => setCurrentPage((p) => p + 1);
   const handlePrevPage = () => setCurrentPage((p) => Math.max(1, p - 1));
-
-  const hasAnyDub = currentProvider?.episodes?.some((ep) => ep.hasDub);
+  const handleSelectProv = (prov) => {
+    setCurrentProvider(prov);
+    setAudioTrack("sub");
+  };
 
   return (
     <>
       <Head>
-        <title>{animeName}{currentEpisode ? ` - Episode ${currentEpisode.number}` : ""} | Watch Free</title>
-        <meta name="description" content={`Watch ${animeName}${currentEpisode ? ` Episode ${currentEpisode.number}` : ""} for free online.`} />
-        <meta property="og:title" content={`${animeName}${currentEpisode ? ` - Episode ${currentEpisode.number}` : ""} | Watch Free`} />
-        <meta property="og:description" content={`Stream ${animeName}${currentEpisode ? ` Episode ${currentEpisode.number}` : ""} in high quality for free.`} />
-        <meta property="og:image" content={currentEpisode?.image ? getImageUrl(currentEpisode.image) : ""} />
-        <meta name="keywords" content={`${animeName}, Episode ${currentEpisode?.number || ""}, Watch Free, Anime Streaming`} />
+        <title>
+          {animeName}
+          {currentEpisode && ` – Episode ${currentEpisode.number}`} | Watch Free
+        </title>
+        <meta
+          name="description"
+          content={`Watch ${animeName}${
+            currentEpisode ? ` Episode ${currentEpisode.number}` : ""
+          } for free online.`}
+        />
+        <meta
+          property="og:title"
+          content={`${animeName}${
+            currentEpisode ? ` – Episode ${currentEpisode.number}` : ""
+          } | Watch Free`}
+        />
+        <meta
+          property="og:description"
+          content={`Stream ${animeName}${
+            currentEpisode ? ` Episode ${currentEpisode.number}` : ""
+          } in high quality for free.`}
+        />
+        <meta
+          property="og:image"
+          content={
+            currentEpisode?.image ? getImageUrl(currentEpisode.image) : ""
+          }
+        />
       </Head>
+
       <div className="min-h-screen bg-[#121212] text-white flex flex-col md:flex-row">
-        {/* MAIN CONTENT (Video player and details) */}
-        <div className="order-1 md:order-2 flex-1 flex flex-col">
+        {/* Video + details */}
+        <div className="flex-1 flex flex-col order-1 md:order-2">
           <div className="p-4">
-            <h1 className="text-3xl font-bold mb-4">{animeName || "Anime Title"}</h1>
+            <h1 className="text-3xl font-bold mb-4">
+              {animeName || "Anime Title"}
+            </h1>
             {currentEpisode ? (
               !episodeDetails ? (
-                <div className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
-                  <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-full h-[300px] bg-[#1f1f1f] flex items-center justify-center rounded">
+                  <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : (
-                <div ref={playerContainerRef} className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] rounded overflow-hidden" />
+                <div
+                  ref={playerContainerRef}
+                  className="w-full h-[300px] bg-[#1f1f1f] rounded overflow-hidden"
+                />
               )
             ) : (
-              <div className="w-full h-[200px] sm:h-[300px] md:h-[400px] bg-[#1f1f1f] flex items-center justify-center rounded">
+              <div className="w-full h-[300px] bg-[#1f1f1f] flex items-center justify-center rounded">
                 Select an episode
               </div>
             )}
           </div>
+
           <div className="bg-[#1f1f1f] p-4">
             {currentEpisode && (
               <div className="mb-3">
@@ -280,18 +297,21 @@ export default function WatchPage() {
                   Episode {currentEpisode.number}: {currentEpisode.title}
                 </div>
                 {currentEpisode.isFiller && (
-                  <span className="inline-block mt-1 px-2 py-1 text-xs text-white bg-red-600 rounded">
+                  <span className="inline-block mt-1 px-2 py-1 text-xs bg-red-600 rounded">
                     Filler Episode
                   </span>
                 )}
               </div>
             )}
+
             <div className="mb-4">
               <span className="font-bold text-gray-300 mr-2">Audio:</span>
               <button
                 onClick={() => setAudioTrack("sub")}
-                className={`inline-block px-3 py-1 rounded mr-2 mb-2 transition-colors ${
-                  audioTrack === "sub" ? "bg-purple-600" : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
+                className={`px-3 py-1 rounded mr-2 ${
+                  audioTrack === "sub"
+                    ? "bg-purple-600"
+                    : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
                 }`}
               >
                 SUB
@@ -299,85 +319,112 @@ export default function WatchPage() {
               {hasAnyDub && (
                 <button
                   onClick={() => setAudioTrack("dub")}
-                  className={`inline-block px-3 py-1 rounded mr-2 mb-2 transition-colors ${
-                    audioTrack === "dub" ? "bg-purple-600" : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
+                  className={`px-3 py-1 rounded mr-2 ${
+                    audioTrack === "dub"
+                      ? "bg-purple-600"
+                      : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
                   }`}
                 >
                   DUB
                 </button>
               )}
               {!hasAnyDub && audioTrack === "dub" && (
-                <span className="text-red-400 ml-2">No dub episodes available for this server.</span>
+                <span className="text-red-400">No dub available.</span>
               )}
             </div>
-            <div className="mb-2">
+
+            <div className="mb-4">
               <span className="font-bold text-gray-300 mr-2">Server:</span>
-              {providers.map((provider) => (
+              {providers.map((prov) => (
                 <button
-                  key={provider.providerId}
-                  onClick={() => handleProviderSelect(provider)}
-                  className={`inline-block px-3 py-1 rounded mr-2 mb-2 transition-colors ${
-                    currentProvider?.providerId === provider.providerId ? "bg-purple-600" : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
+                  key={prov.providerId}
+                  onClick={() => handleSelectProv(prov)}
+                  className={`px-3 py-1 rounded mr-2 ${
+                    currentProvider?.providerId === prov.providerId
+                      ? "bg-purple-600"
+                      : "bg-[#2a2a2a] hover:bg-[#3a3a3a]"
                   }`}
                 >
                   Server 1
                 </button>
               ))}
             </div>
-            <div className="text-sm text-gray-400 mt-2">If the current server or track doesn’t work, please try switching.</div>
+            <div className="text-sm text-gray-400">
+              If this server or track fails, switch options above.
+            </div>
           </div>
         </div>
-        {/* EPISODE SELECTOR (Sidebar) */}
-        <div className="order-3 md:order-1 w-full md:w-[350px] border-t md:border-t-0 md:border-r border-gray-800 flex flex-col">
+
+        {/* Episode list */}
+        <div className="w-full md:w-[350px] flex flex-col order-3 md:order-1 border-t md:border-t-0 md:border-r border-gray-800">
           <div className="p-4 border-b md:border-b-0">
             <h2 className="text-xl font-bold mb-2">Up Next</h2>
             <input
               type="text"
               placeholder="Search episodes..."
-              className="w-full p-2 rounded bg-[#1f1f1f] text-white outline-none"
+              className="w-full p-2 rounded bg-[#1f1f1f] text-white"
               value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
-          <div className="p-4 space-y-2 overflow-y-auto" style={{ maxHeight: "400px" }}>
+
+          <div
+            className="p-4 space-y-2 overflow-y-auto"
+            style={{ maxHeight: "400px" }}
+          >
             {loading ? (
-              <div className="w-full flex justify-center">
-                <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+              <div className="flex justify-center">
+                <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin" />
               </div>
-            ) : paginated.length ? (
+            ) : paginated.length > 0 ? (
               paginated.map((ep) => (
-                <button
+                <div
                   key={ep.id}
-                  onClick={() => handleEpisodeSelect(ep)}
-                  className={`flex items-center p-2 rounded transition-colors w-full text-left ${
-                    currentEpisode?.id === ep.id ? "bg-purple-700" : "bg-[#1f1f1f] hover:bg-[#2a2a2a]"
+                  onClick={() => handleSelectEp(ep)}
+                  className={`cursor-pointer p-2 rounded ${
+                    currentEpisode?.id === ep.id
+                      ? "bg-purple-600"
+                      : "bg-[#1f1f1f] hover:bg-[#2a2a2a]"
                   }`}
                 >
-                  {ep.image && (
-                    <img
-                      src={getImageUrl(ep.image)}
-                      alt={`Episode ${ep.number}`}
-                      className="w-14 h-14 object-cover rounded mr-2"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <div className="font-semibold">Episode {ep.number}</div>
-                    <div className="text-xs text-gray-300">{(ep.description?.slice(0, 50) || "No description")}...</div>
+                  <div className="font-semibold">Episode {ep.number}</div>
+                  <div className="text-xs text-gray-400 line-clamp-2">
+                    {ep.title || ep.description || "No title"}
                   </div>
-                </button>
+                  {ep.isFiller && (
+                    <div className="text-xs text-red-400 mt-1">Filler</div>
+                  )}
+                </div>
               ))
             ) : (
-              <div>No episodes found.</div>
+              <div className="text-center text-gray-500">No episodes found.</div>
             )}
           </div>
-          <div className="p-4 flex justify-between border-t border-gray-800">
-            <button onClick={handlePrevPage} className="flex items-center bg-[#1f1f1f] hover:bg-[#2a2a2a] px-3 py-1 rounded transition-colors">
-              <ChevronLeft size={18} className="mr-1" /> Prev
-            </button>
-            <button onClick={handleNextPage} className="flex items-center bg-[#1f1f1f] hover:bg-[#2a2a2a] px-3 py-1 rounded transition-colors">
-              Next <ChevronRight size={18} className="ml-1" />
-            </button>
-          </div>
+
+          {filtered.length > episodesPerPage && (
+            <div className="flex justify-between items-center p-4 border-t border-gray-800">
+              <button
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+                className="px-3 py-1 rounded bg-[#1f1f1f] hover:bg-[#2a2a2a] disabled:opacity-50"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <span className="text-sm text-gray-400">
+                Page {currentPage} / {Math.ceil(filtered.length / episodesPerPage)}
+              </span>
+              <button
+                onClick={handleNextPage}
+                disabled={startIdx + episodesPerPage >= filtered.length}
+                className="px-3 py-1 rounded bg-[#1f1f1f] hover:bg-[#2a2a2a] disabled:opacity-50"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </>
