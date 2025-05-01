@@ -3,63 +3,74 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
-import { Home, Flame, Calendar, History, User, Settings } from "lucide-react"
+import { Home, Flame, Calendar, History, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 const navItems = [
   { name: "Home", icon: Home, href: "/" },
   { name: "Trending", icon: Flame, href: "/trending" },
+  // { name: "Search", icon: Search, href: "/search" },
   { name: "Schedule", icon: Calendar, href: "/schedule" },
   { name: "History", icon: History, href: "/history" },
-  // { name: "Profile", icon: User, href: "/profile" },
-  // { name: "Settings", icon: Settings, href: "/settings" },
 ]
 
 export default function BottomNavigation() {
   const pathname = usePathname()
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gray-800 overflow-visible relative z-30">
-      <div className="flex justify-around h-16">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/10 z-50 shadow-[0_-12px_40px_rgba(236,72,153,0.15)]">
+      <div className="flex justify-around h-20 relative">
         {navItems.map((item) => {
           const isActive = pathname === item.href
 
           return (
-            <Link key={item.name} href={item.href} className=" flex items-center justify-center">
+            <Link 
+              key={item.name} 
+              href={item.href} 
+              className="flex items-center justify-center relative group"
+            >
               <motion.div
-                initial={false}
-                animate={
-                  isActive
-                    ? {
-                        y: -10,
-                        scale: 1.1,
-                        boxShadow: "0px 0px 10px rgba(168, 85, 247, 0.6)", // Adjusted shadow color
-                      }
-                    : { y: 0, scale: 1, boxShadow: "none" }
-                }
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className=" h-full"
+                className="flex flex-col items-center justify-center gap-1 h-full w-16 relative"
+                whileTap={{ scale: 0.95 }}
               >
+                {/* Active indicator bar */}
+                {isActive && (
+                  <motion.div
+                    layoutId="active-bar"
+                    className="w-full h-1 bg-pink-400 absolute top-0 rounded-full"
+                    transition={{ type: "spring", stiffness: 300 }}
+                  />
+                )}
+
+                {/* Button with instant click feedback */}
                 <Button
-                  variant={isActive ? "bottomnav" : "ghost"}
+                  variant="ghost"
                   size="icon"
-                  className={`flex flex-col h-full w-16 items-center justify-center gap-0.5 transition-all ${
-                    isActive ? "bg-purple-600" : "hover:bg-purple-600/30"
-                  }`}
+                  className={`
+                    w-12 h-12 rounded-2xl 
+                    transition-colors
+                    ${isActive 
+                      ? "!bg-pink-600 shadow-pink-glow" 
+                      : "bg-white/5 active:!bg-pink-600 hover:bg-white/10"}
+                    focus:!bg-pink-600
+                    focus:!ring-0
+                  `}
                 >
                   <item.icon
-                    className={`h-10 w-10 ${
-                      isActive ? "text-white" : "text-white"
+                    className={`h-6 w-6 ${
+                      isActive ? "text-white" : "text-pink-300"
                     }`}
                   />
-                  <span
-                    className={`text-[10px] font-bold leading-tight ${
-                      isActive ? "text-white" : "text-white"
-                    }`}
-                  >
-                    {item.name}
-                  </span>
                 </Button>
+
+                {/* Label */}
+                <span
+                  className={`text-xs font-medium ${
+                    isActive ? "text-pink-400" : "text-gray-400"
+                  }`}
+                >
+                  {item.name}
+                </span>
               </motion.div>
             </Link>
           )
