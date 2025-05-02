@@ -1,363 +1,181 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useDebounce } from 'use-debounce';
-import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { Menu, Search, X, Radio } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
+import { ChevronLeft, ChevronRight, Play, Info, Volume2, VolumeX } from 'lucide-react';
 
-const ANILIST_API = 'https://graphql.anilist.co';
+export default function AnimeCarousel() {
+  // ... keep previous state and fetch logic ...
+  const [trendingAnime, setTrendingAnime] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [trailerLoaded, setTrailerLoaded] = useState(false);
 
-export default function Navbar() {
-  const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [debouncedQuery] = useDebounce(query, 500);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
-  const suggestionRef = useRef(null);
-  const searchRef = useRef(null);
-
-  // Animation variants for Framer Motion
-  const variants = {
-    logo: {
-      initial: { x: -50, opacity: 0 },
-      animate: { x: 0, opacity: 1 },
-    },
-    menu: {
-      initial: { y: -20, opacity: 0 },
-      animate: { y: 0, opacity: 1 },
-    },
-    search: {
-      initial: { scale: 0.95, opacity: 0 },
-      animate: { scale: 1, opacity: 1 },
-    },
-  };
-
-  useEffect(() => {
-    const fetchSuggestions = async () => {
-      if (debouncedQuery.length > 2) {
-        setIsLoading(true);
-        try {
-          const data = await fetchAniListData(debouncedQuery);
-          setSuggestions(data);
-        } catch (error) {
-          console.error('Error fetching suggestions:', error);
-          setSuggestions([]);
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
-        setSuggestions([]);
-        setIsLoading(false);
-      }
-    };
-
-    fetchSuggestions();
-  }, [debouncedQuery]);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (query.trim()) {
-      router.push(`/search?q=${encodeURIComponent(query)}`);
-      setIsMenuOpen(false);
+  const fetchTrendingAnime = useCallback(async () => {
+    try {
+      const res = await fetch('/api/crousel');
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const data = await res.json();
+      setTrendingAnime(data);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to load trending anime');
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleSuggestionClick = (suggestion) => {
-    setQuery('');
-    setSuggestions([]);
-    setIsMenuOpen(false);
-    router.push(`/anime/${suggestion.id}`);
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        suggestionRef.current &&
-        !suggestionRef.current.contains(event.target) &&
-        searchRef.current &&
-        !searchRef.current.contains(event.target)
-      ) {
-        setSuggestions([]);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
   }, []);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'RELEASING':
-        return 'text-green-400';
-      case 'FINISHED':
-        return 'text-blue-400';
-      case 'NOT_YET_RELEASED':
-        return 'text-yellow-400';
-      case 'CANCELLED':
-        return 'text-red-400';
-      default:
-        return 'text-gray-400';
-    }
+  useEffect(() => {
+    fetchTrendingAnime();
+  }, [fetchTrendingAnime]);
+
+  const handleNavigation = (direction) => {
+    setTrailerLoaded(false);
+    setCurrentIndex(prev => 
+      (prev + direction + trendingAnime.length) % trendingAnime.length
+    );
   };
 
-  return (
-    <motion.nav
-      className="bg-gray-800 py-4 px-4 sm:px-6 lg:px-8 overflow-visible"
-      initial="initial"
-      animate="animate"
-    >
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between">
-          {/* Logo with Updated Styles */}
-          <motion.div
-            variants={variants.logo}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-          >
-            <Link
-              href="/"
-              className="flex items-center hover:text-purple-300 transition-colors"
-            >
-              {/* Logo Icon */}
-              <span className="mr-2">
-                {/* Replace '/logo-icon.svg' with your actual logo icon path */}
-                <img
-                  src="/logo-icon.svg"
-                  alt="HelloAnime Logo"
-                  className="w-10 h-10"
-                />
-              </span>
-              {/* Logo Text */}
-              <span className="text-white flex">
-                <span className="font-extrabold text-3xl sm:text-4xl">
-                  HELLO
-                </span>
-                <span className="font-light italic text-3xl sm:text-4xl ml-1">
-                  Anime
-                </span>
-              </span>
-            </Link>
-          </motion.div>
+  if (loading) {
+    return <Skeleton className="w-full h-[280px] md:h-[480px] rounded-xl bg-gray-800/50" />;
+  }
 
-          {/* Menu and Search */}
-          <div className="flex items-center">
-            {/* Desktop Search */}
-            <motion.div
-              className="hidden sm:block sm:w-64 lg:w-96 mr-4"
-              variants={variants.search}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-            >
-              <SearchForm
-                query={query}
-                setQuery={setQuery}
-                handleSearch={handleSearch}
-                suggestions={suggestions}
-                handleSuggestionClick={handleSuggestionClick}
-                suggestionRef={suggestionRef}
-                searchRef={searchRef}
-                isLoading={isLoading}
-                getStatusColor={getStatusColor}
-              />
-            </motion.div>
-
-            {/* Desktop Login Button */}
-            <motion.div
-              className="hidden sm:block"
-              variants={variants.menu}
-              transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
-            >
-              <Button
-                variant="secondary"
-                className="bg-purple-600 text-white hover:bg-purple-700 transition-colors"
-              >
-                Login
-              </Button>
-            </motion.div>
-
-            {/* Mobile Menu and Login Button */}
-            <motion.div
-              className="flex items-center sm:hidden"
-              variants={variants.menu}
-              transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
-            >
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:text-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-400 border border-purple-300 mr-2"
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-              >
-                {isMenuOpen ? (
-                  <X size={24} />
-                ) : (
-                  <Search size={24} style={{ fontWeight: 'bold' }} />
-                )}
-              </Button>
-              <Button
-                variant="secondary"
-                className="bg-purple-600 text-white hover:bg-purple-700 transition-colors"
-              >
-                Login
-              </Button>
-            </motion.div>
-          </div>
-        </div>
-
-        {/* Mobile Search */}
-        <div className={`mt-4 sm:hidden ${isMenuOpen ? 'block' : 'hidden'}`}>
-          <SearchForm
-            query={query}
-            setQuery={setQuery}
-            handleSearch={handleSearch}
-            suggestions={suggestions}
-            handleSuggestionClick={handleSuggestionClick}
-            suggestionRef={suggestionRef}
-            searchRef={searchRef}
-            isLoading={isLoading}
-            getStatusColor={getStatusColor}
-          />
-        </div>
+  if (error) {
+    return (
+      <div className="w-full h-[280px] md:h-[480px] bg-gray-900/50 flex items-center justify-center text-pink-200 rounded-xl border border-white/10">
+        {error}
       </div>
-    </motion.nav>
-  );
-}
+    );
+  }
 
-function SearchForm({
-  query,
-  setQuery,
-  handleSearch,
-  suggestions,
-  handleSuggestionClick,
-  suggestionRef,
-  searchRef,
-  isLoading,
-  getStatusColor,
-}) {
+  if (!trendingAnime.length) {
+    return (
+      <div className="w-full h-[280px] md:h-[480px] bg-gray-900/50 flex items-center justify-center text-pink-200 rounded-xl border border-white/10">
+        No trending anime available
+      </div>
+    );
+  }
+
+  const currentAnime = trendingAnime[currentIndex];
+  const imageUrl = currentAnime?.bannerImage || currentAnime?.coverImage?.large || '/placeholder.svg';
+  const trailerId = currentAnime?.trailer?.id;
+
+  const [isMuted, setIsMuted] = useState(true);
+
+  // Add mute toggle handler
+  const toggleMute = () => setIsMuted(!isMuted);
+
   return (
-    <div className="relative w-full" ref={searchRef}>
-      <form onSubmit={handleSearch} className="relative">
-        <div className="relative w-full">
-          <Input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search for anime..."
-            className="w-full pr-10 bg-gray-800 text-white border border-purple-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-400 placeholder-gray-400"
-          />
-          <Button
-            type="submit"
-            className="absolute right-0 top-0 bottom-0 bg-purple-600 text-white px-3 rounded-r-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400"
-          >
-            <Search size={20} />
-          </Button>
-        </div>
-      </form>
-      {(suggestions.length > 0 || isLoading) && (
-        <div
-          ref={suggestionRef}
-          className="absolute z-10 w-full mt-1 bg-gray-800 border border-purple-600 rounded-md shadow-lg max-h-60 overflow-y-auto"
+    <div className="relative w-full h-[280px] md:h-[480px] rounded-xl overflow-hidden border border-white/10 shadow-[0_8px_32px_rgba(236,72,153,0.1)] group">
+      {/* Navigation Arrows */}
+      <button 
+        onClick={() => handleNavigation(-1)}
+        className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-30 p-2 bg-black/30 rounded-full"
+      >
+        <ChevronLeft className="w-6 h-6 md:w-8 md:h-8 text-pink-400" />
+      </button>
+      <button 
+        onClick={() => handleNavigation(1)}
+        className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-30 p-2 bg-black/30 rounded-full"
+      >
+        <ChevronRight className="w-6 h-6 md:w-8 md:h-8 text-pink-400" />
+      </button>
+
+      {/* Mute Toggle */}
+      {trailerLoaded && (
+        <button
+          onClick={toggleMute}
+          className="absolute bottom-4 right-4 z-30 p-2 bg-black/30 rounded-full"
         >
-          {isLoading ? (
-            [...Array(3)].map((_, index) => (
-              <div key={index} className="flex items-center p-2">
-                <Skeleton className="w-10 h-14 mr-2" />
-                <div className="flex-1">
-                  <Skeleton className="h-4 w-3/4 mb-1" />
-                  <Skeleton className="h-3 w-1/2" />
-                </div>
-              </div>
-            ))
+          {isMuted ? (
+            <VolumeX className="w-5 h-5 text-pink-400" />
           ) : (
-            suggestions.map((suggestion) => (
-              <button
-                key={suggestion.id}
-                className="w-full text-left flex items-center p-2 hover:bg-gray-700 cursor-pointer text-white"
-                onClick={() => handleSuggestionClick(suggestion)}
-              >
-                <img
-                  src={suggestion.coverImage.medium || '/placeholder.svg'}
-                  alt={suggestion.title.romaji}
-                  className="w-10 h-14 object-cover mr-2"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = '/placeholder-image.jpg';
-                  }}
-                />
-                <div className="flex-1">
-                  <span className="line-clamp-1">
-                    {suggestion?.title?.english || suggestion?.title?.romaji}
-                  </span>
-                  <div className="flex items-center text-sm mt-1">
-                    <Radio
-                      className={`w-3 h-3 mr-1 ${getStatusColor(
-                        suggestion.status
-                      )}`}
-                    />
-                    <span
-                      className={`text-xs ${getStatusColor(suggestion.status)}`}
-                    >
-                      {suggestion.status === 'RELEASING'
-                        ? 'Airing'
-                        : suggestion.status === 'FINISHED'
-                        ? 'Finished'
-                        : suggestion.status === 'NOT_YET_RELEASED'
-                        ? 'Upcoming'
-                        : suggestion.status === 'CANCELLED'
-                        ? 'Cancelled'
-                        : 'Unknown'}
-                    </span>
-                  </div>
-                </div>
-              </button>
-            ))
+            <Volume2 className="w-5 h-5 text-pink-400" />
           )}
-        </div>
+        </button>
       )}
+
+      <AnimatePresence mode='wait'>
+        <motion.div
+          key={currentIndex}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          className="relative h-full w-full"
+        >
+          {/* Media Container */}
+          <div className="relative w-full h-full">
+            {/* Preview Image */}
+            <img
+              src={imageUrl}
+              alt=""
+              className={`w-full h-full object-cover ${trailerLoaded ? 'opacity-0' : 'opacity-100'} transition-opacity duration-500`}
+              loading="eager"
+              onError={(e) => e.target.src = '/placeholder.svg'}
+            />
+
+            {/* YouTube Trailer */}
+            {trailerId && (
+              <iframe
+                className={`absolute inset-0 w-full h-full object-cover ${trailerLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-500`}
+                src={`https://www.youtube.com/embed/${trailerId}?autoplay=1&mute=${isMuted ? 1 : 0}&playsinline=1&controls=0&modestbranding=1&rel=0`}
+                allow="accelerometer; autoplay; encrypted-media; gyroscope"
+                allowFullScreen
+                onLoad={() => setTrailerLoaded(true)}
+              />
+            )}
+          </div>
+
+          {/* Content Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+
+          {/* Content */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 lg:p-8 text-white">
+            <div className="max-w-2xl space-y-2 md:space-y-4 text-left">
+              <Badge className="bg-pink-600/90 text-white w-fit">
+                <span className="mr-2">⭐</span> #{currentIndex + 1} Spotlight
+              </Badge>
+
+              <h1 className="font-bold text-xl md:text-3xl line-clamp-2 text-left">
+                {currentAnime.title?.english || currentAnime.title?.romaji}
+              </h1>
+
+              {/* Desktop-only Description */}
+              <p className="hidden md:block text-pink-100/90 line-clamp-3 text-sm">
+                {currentAnime.description?.replace(/<[^>]+>/g, '')}
+              </p>
+
+              {/* Buttons */}
+              <div className="flex flex-col md:flex-row gap-2 items-start">
+                <Link href={`/watch/${currentAnime.id}`} className="md:flex-1 w-full md:w-auto">
+                  <Button className="w-full md:w-auto bg-pink-600 hover:bg-pink-500 text-white">
+                    <Play className="h-4 w-4 mr-2" />
+                    Watch Now
+                  </Button>
+                </Link>
+                <Link 
+                  href={`/anime/${currentAnime.id}`} 
+                  className="hidden md:block md:flex-1"
+                >
+                  <Button 
+                    variant="outline" 
+                    className="w-full md:w-auto text-pink-100 border-pink-400/50 bg-pink-900/20 hover:bg-pink-800/30"
+                  >
+                    <Info className="h-4 w-4 mr-2" />
+                    Details
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
-}
-
-async function fetchAniListData(query) {
-  const searchQuery = `
-    query ($search: String) {
-      Page(page: 1, perPage: 10) {
-        media(search: $search, type: ANIME, sort: POPULARITY_DESC) {
-          id
-          title {
-            romaji
-            english
-          }
-          coverImage {
-            medium
-            large
-          }
-          averageScore
-          episodes
-          description
-          status
-        }
-      }
-    }
-  `;
-
-  const response = await fetch(ANILIST_API, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      query: searchQuery,
-      variables: { search: query },
-    }),
-  });
-
-  const data = await response.json();
-  return data.data.Page.media;
 }

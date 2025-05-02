@@ -1,216 +1,213 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Play,
+  Info,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 
-export default function AnimeCarousel() {
+export default function TrendingAnimeCarousel() {
   const [trendingAnime, setTrendingAnime] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [trailerLoaded, setTrailerLoaded] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const iframeRef = useRef(null);
 
-  // Fetch anime data from your crousel API
   const fetchTrendingAnime = useCallback(async () => {
     try {
-      const response = await fetch('/api/crousel');
-      if (!response.ok) {
-        throw new Error(`Crousel API responded with status: ${response.status}`);
-      }
-      const data = await response.json();
+      const res = await fetch('/api/crousel');
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const data = await res.json();
       setTrendingAnime(data);
-    } catch (error) {
-      console.error('Error fetching crousel data:', error);
-      setError(error.message || 'An unknown error occurred');
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to load trending anime');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Slide navigation functions
-  const nextSlide = useCallback(() => {
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % trendingAnime.length);
-  }, [trendingAnime.length]);
-
-  const prevSlide = useCallback(() => {
-    setCurrentIndex((prevIndex) =>
-      prevIndex === 0 ? trendingAnime.length - 1 : prevIndex - 1
-    );
-  }, [trendingAnime.length]);
-
-  const goToSlide = useCallback((index) => {
-    setCurrentIndex(index);
-  }, []);
-
-  // Fetch data on mount
   useEffect(() => {
     fetchTrendingAnime();
   }, [fetchTrendingAnime]);
 
-  // Auto-slide interval
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      nextSlide();
-    }, 5000);
-    return () => clearInterval(intervalId);
-  }, [nextSlide]);
+  const handleNavigation = (direction) => {
+    setTrailerLoaded(false);
+    setCurrentIndex((prev) =>
+      (prev + direction + trendingAnime.length) % trendingAnime.length
+    );
+  };
 
-  // Strip HTML tags from description
-  function stripHtmlTags(str) {
-    if (!str) return '';
-    return str.replace(/<[^>]+>/g, '');
-  }
+  const toggleMute = () => {
+    if (!iframeRef.current) return;
+    const iframeWindow = iframeRef.current.contentWindow;
+    if (iframeWindow) {
+      iframeWindow.postMessage(
+        JSON.stringify({
+          event: 'command',
+          func: isMuted ? 'unMute' : 'mute',
+          args: [],
+        }),
+        '*'
+      );
+      setIsMuted((prev) => !prev);
+    }
+  };
 
-  // Loading state
   if (loading) {
     return (
-      <div className="w-full h-[280px] md:h-[480px] bg-gray-900 rounded-lg overflow-hidden">
-        <Skeleton className="w-full h-full" />
-      </div>
+      <Skeleton className="w-full h-[280px] md:h-[480px] rounded-xl bg-gray-800/50" />
     );
   }
 
-  // Error state
   if (error) {
     return (
-      <div className="w-full h-[280px] md:h-[480px] bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center">
-        <p className="text-white text-xl">Error: {error}</p>
+      <div className="w-full h-[280px] md:h-[480px] bg-gray-900/50 flex items-center justify-center text-pink-200 rounded-xl border border-white/10">
+        {error}
       </div>
     );
   }
 
-  // No data state
-  if (trendingAnime.length === 0) {
+  if (!trendingAnime.length) {
     return (
-      <div className="w-full h-[280px] md:h-[480px] bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center">
-        <p className="text-white text-xl">No trending anime available at the moment.</p>
+      <div className="w-full h-[280px] md:h-[480px] bg-gray-900/50 flex items-center justify-center text-pink-200 rounded-xl border border-white/10">
+        No trending anime available
       </div>
     );
   }
 
-  // Main render
+  const currentAnime = trendingAnime[currentIndex];
+  const imageUrl =
+    currentAnime?.bannerImage || currentAnime?.coverImage?.large ||
+    '/placeholder.svg';
+  const trailerId = currentAnime?.trailer?.id;
+
   return (
-    <div className="relative w-full h-[280px] md:h-[480px] bg-gray-900 rounded-lg overflow-hidden">
-      <AnimatePresence initial={false}>
+    <div className="relative w-full h-[280px] md:h-[480px] rounded-xl overflow-hidden border border-white/10 shadow-[0_8px_32px_rgba(236,72,153,0.1)] group">
+      {/* Navigation Arrows */}
+      <button
+        onClick={() => handleNavigation(-1)}
+        className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-30 p-2 bg-black/30 rounded-full"
+      >
+        <ChevronLeft className="w-6 h-6 md:w-8 md:h-8 text-pink-400" />
+      </button>
+      <button
+        onClick={() => handleNavigation(1)}
+        className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-30 p-2 bg-black/30 rounded-full"
+      >
+        <ChevronRight className="w-6 h-6 md:w-8 md:h-8 text-pink-400" />
+      </button>
+
+      {/* Mute Toggle */}
+      {trailerLoaded && (
+        <button
+          onClick={toggleMute}
+          className="absolute bottom-4 right-4 z-30 p-2 bg-black/30 rounded-full"
+          aria-label={isMuted ? 'Unmute' : 'Mute'}
+        >
+          {isMuted ? (
+            <VolumeX className="w-5 h-5 text-pink-400" />
+          ) : (
+            <Volume2 className="w-5 h-5 text-pink-400" />
+          )}
+        </button>
+      )}
+
+      <AnimatePresence mode="wait">
         <motion.div
           key={currentIndex}
-          variants={{
-            enter: { x: 300, opacity: 0 },
-            center: { x: 0, opacity: 1 },
-            exit: { x: -300, opacity: 0 },
-          }}
-          initial="enter"
-          animate="center"
-          exit="exit"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
-          className="absolute w-full h-full"
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          onDragEnd={(event, info) => {
-            const offset = info.offset.x;
-            if (offset < -50) {
-              // Swiped left to see next slide
-              nextSlide();
-            } else if (offset > 50) {
-              // Swiped right to see previous slide
-              prevSlide();
-            }
-          }}
+          className="relative h-full w-full"
         >
-          {trendingAnime[currentIndex] && (
-            <>
-              {/* Background Image for Mobile (Cover Image) */}
-              <div
-                className="md:hidden absolute inset-0 bg-cover bg-center"
-                style={{
-                  backgroundImage: `url(${
-                    trendingAnime[currentIndex].coverImage.extraLarge ||
-                    trendingAnime[currentIndex].coverImage.large
-                  })`,
-                }}
-              />
-              {/* Background Image for Desktop (Banner Image) */}
-              <div
-                className="hidden md:block absolute inset-0 bg-cover bg-center"
-                style={{
-                  backgroundImage: `url(${
-                    trendingAnime[currentIndex].bannerImage ||
-                    trendingAnime[currentIndex].coverImage.extraLarge ||
-                    trendingAnime[currentIndex].coverImage.large
-                  })`,
-                }}
-              />
-              {/* Gradient Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+          {/* Media Container */}
+          <div className="relative w-full h-full">
+            {/* Preview Image */}
+            <img
+              src={imageUrl}
+              alt="Anime banner"
+              className={`w-full h-full object-cover ${
+                trailerLoaded ? 'opacity-0' : 'opacity-100'
+              } transition-opacity duration-500`}
+              loading="eager"
+              onError={(e) => ((e.target).src = '/placeholder.svg')}
+            />
 
-              {/* Content */}
-              <div className="absolute inset-0 flex flex-col justify-end px-4 md:px-10 pt-4 md:pt-10 pb-2 md:pb-4 text-white">
-                <div className="w-full md:w-2/3 lg:w-1/2">
-                  <Badge className="mb-1 md:mb-2 bg-purple-600 text-white text-xs md:text-sm">
-                    #{currentIndex + 1} Spotlight
-                  </Badge>
-                  <h2 className="text-xl md:text-4xl font-bold mb-1 md:mb-2 line-clamp-2">
-                    {trendingAnime[currentIndex].title.english ||
-                      trendingAnime[currentIndex].title.romaji}
-                  </h2>
-                  {/* Hide description on very small screens */}
-                  <p className="hidden sm:block text-sm md:text-base text-gray-300 mb-2 md:mb-4 line-clamp-2">
-                    {stripHtmlTags(trendingAnime[currentIndex].description).substring(0, 100)}...
-                  </p>
-                  <div className="flex flex-wrap gap-2 mb-2 md:mb-4">
-                    {(trendingAnime[currentIndex].genres || []).slice(0, 2).map((genre, index) => (
-                      <Badge key={index} className="bg-gray-800/60 text-gray-200 text-xs md:text-sm">
-                        {genre}
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="flex items-center space-x-2 md:space-x-4 mb-2 md:mb-4">
-                    <div className="flex items-center text-xs md:text-base">
-                      <span className="text-yellow-400 mr-1">★</span>
-                      <span>{(trendingAnime[currentIndex].averageScore / 10).toFixed(1)}</span>
-                    </div>
-                    <Badge className="text-green-400 border-green-400 bg-black/30 text-xs md:text-sm">
-                      {trendingAnime[currentIndex].status}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
+            {/* YouTube Trailer */}
+            {trailerId && (
+              <iframe
+                ref={iframeRef}
+                className={`absolute inset-0 w-full h-full object-cover ${
+                  trailerLoaded ? 'opacity-100' : 'opacity-0'
+                } transition-opacity duration-500`}
+                src={`https://www.youtube.com/embed/${trailerId}?autoplay=1&mute=1&enablejsapi=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&autohide=1&fs=0`}
+                allow="accelerometer; autoplay; encrypted-media; gyroscope"
+                allowFullScreen
+                onLoad={() => setTrailerLoaded(true)}
+              />
+            )}
+          </div>
 
-              {/* Buttons positioned at bottom right */}
-              <div className="absolute bottom-1 md:bottom-2 right-4 md:right-6 flex flex-col md:flex-row items-end md:items-center space-y-2 md:space-y-0 md:space-x-4 z-20">
-                <Link href={`/watch/${trendingAnime[currentIndex].id}`}>
-                  <Button className="bg-purple-600 hover:bg-purple-700 text-white w-28 md:w-auto text-sm md:text-base">
-                    Watch Now
-                  </Button>
-                </Link>
-                {/* Hide "Details" button on mobile */}
-                <Link href={`/anime/${trendingAnime[currentIndex].id}`} className="hidden md:block">
-                  <Button className="bg-purple-600 hover:bg-purple-700 text-white w-28 md:w-auto text-sm md:text-base">
-                    Details
-                  </Button>
-                </Link>
-              </div>
-            </>
-          )}
+          {/* Content Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+
+          {/* Content */}
+          <div className="absolute bottom-0 left-0 p-4 md:p-6 lg:p-8 text-white text-left">
+            <div className="max-w-lg space-y-2 md:space-y-4">
+              {/* Badge hidden on mobile */}
+              <Badge className="inline-block bg-pink-600/90 text-white w-fit">
+                <span className="mr-2">⭐</span> #{currentIndex + 1} Spotlight
+              </Badge>
+
+              <h1 className="font-bold text-xl md:text-3xl line-clamp-2">
+                {currentAnime.title?.english || currentAnime.title?.romaji}
+              </h1>
+
+              {/* Description hidden on mobile */}
+              <p
+                className="hidden md:block text-pink-100/90 text-sm md:line-clamp-3"
+              >
+                <style>
+                  display: hidden;
+                </style>
+                {currentAnime.description?.replace(/<[^>]+>/g, '')}
+              </p>
+
+              {/* Buttons container aligned left */}
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
+  <Link href={`/watch/${currentAnime.id}`} className="md:w-auto">
+    <Button className="w-full md:w-auto bg-pink-600 hover:bg-pink-500 text-white">
+      <Play className="h-4 w-4 mr-2" />
+      Watch Now
+    </Button>
+  </Link>
+  <Link href={`/anime/${currentAnime.id}`} className="hidden md:inline-block">
+    <Button
+      variant="outline"
+      className="border-white/20 text-white bg-transparent hover:bg-white/10 hover:text-pink-400"
+    >
+      <Info className="h-4 w-4 mr-2" />
+      Details
+    </Button>
+  </Link>
+</div>
+            </div>
+          </div>
         </motion.div>
       </AnimatePresence>
-
-      {/* Navigation Dots moved to top right */}
-      <div className="absolute top-4 md:top-6 right-4 md:right-6 flex space-x-2 z-20">
-        {trendingAnime.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => goToSlide(index)}
-            className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-all duration-300 ${
-              index === currentIndex ? 'bg-white scale-110' : 'bg-gray-500 hover:bg-gray-400'
-            }`}
-            aria-label={`Go to slide ${index + 1}`}
-          />
-        ))}
-      </div>
     </div>
   );
 }
